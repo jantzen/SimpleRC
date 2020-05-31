@@ -32,8 +32,9 @@ class simpleRC( object ):
 
     def update(self, u):
         if not u.shape == (self.nu, 1):
-            raise ValueError("Expected input dims: {}".format(
-                (self.nu, 1)))
+            raise ValueError(
+                    "Expected input dims: {}, Received: {}".format(
+                (self.nu, 1), u.shape))
         # insert value for bias
         u_bias = np.vstack((np.ones((1,1)), u))
 
@@ -49,32 +50,36 @@ class simpleRC( object ):
         self.y = np.zeros((self.no, 1))
 
 
-    def predict(self, u):
-        """ Moves through input u with a window of width nu, yielding an output
-        array of preditions of length (u.shape[0] - nu + 1) X no.
+    def predict(self, U):
+        """ Inputs:
+                U: an ss X nu array where ss is the sample size 
+            Ouptput:
+                out: an ss X no.
         """
         self.zero_in_out()
-        steps = u.shape[0] - self.nu + 1
+        steps = U.shape[0]
         out = []
         for ii in range(steps):
-            tmp = u[ii:ii+self.nu]
+            tmp = U[ii,:].reshape(-1,1)
             self.update(tmp)
             out.append(self.y.T)
         return(np.concatenate(out, axis=0))
 
 
-    def train(self, u, y, gamma=0.1):
+    def train(self, U, y, gamma=0.1):
         """ Trains with ridge regression (see Lukusvicius, jaeger, and
-        Schrauwen). u is an n x 1 array of scalar inputs and y is an n X no
-        array of target outputs.
+        Schrauwen).
+        Inputs:
+            U: an ss X nu array where ss is the sample size 
+            y: an ss X no array of target outputs.
         """
         self.zero_in_out()
         # Build concatenated matrices
         X = []
         Y = y.T
-        steps = u.shape[0] - self.nu + 1
+        steps = U.shape[0]
         for ii in range(steps):
-            tmp = u[ii:ii+self.nu]
+            tmp = U[ii,:].reshape(-1,1)
             self.update(tmp)
             X.append(np.vstack((np.ones((1,1)), tmp, self.x)))
         X = np.concatenate(X, axis=1)
