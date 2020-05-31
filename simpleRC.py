@@ -66,7 +66,7 @@ class simpleRC( object ):
         return(np.concatenate(out, axis=0))
 
 
-    def train(self, U, y, gamma=0.1):
+    def train(self, U, y, gamma=1.):
         """ Trains with ridge regression (see Lukusvicius, jaeger, and
         Schrauwen).
         Inputs:

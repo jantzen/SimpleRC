@@ -43,14 +43,14 @@ def open_data(filename):
 
 def prep_training_and_test(data):
     """ Train the RC to use 120-hours worth of data to predict the hourly
-    precipitation 72 hours in advance.
+    temperature 72 hours in advance.
     """
     U = []
     y = []
     steps = int(data.shape[0] / 120) - 1
     for ii in range(steps):
         tmp_U = data[ii * 120 : (ii + 1) * 120, :]
-        tmp_y = data[(ii + 1) * 120 + 72, 1].reshape(1,-1)
+        tmp_y = data[(ii + 1) * 120 + 72, 0].reshape(1,-1)
         U.append(tmp_U.flatten().reshape(1, -1))
         y.append(tmp_y.reshape(1, -1))
     U = np.concatenate(U, axis=0)
