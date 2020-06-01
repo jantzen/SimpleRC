@@ -8,7 +8,8 @@ class simpleRC( object ):
     def __init__(self,
             nu, # size of input layer
             nn, # size of the reservoir
-            no  # size of the output layer
+            no,  # size of the output layer
+            sparsity=0.1 # fraction of connections to make
             ):
         self.nu = nu
         self.nn = nn
@@ -17,8 +18,10 @@ class simpleRC( object ):
         # set input weights (nn X nu)
         self.Win = np.random.rand(nn, nu + 1)
         
-        # set reservoir weights (nn X nn)
-        self.Wres = np.random.rand(nn, nn)
+        # set reservoir connections and weights (nn X nn)
+        edge_matrix = np.random.choice([0, 1], size=(nn, nn), p=[sparsity,
+            1 - sparsity])
+        self.Wres = np.random.rand(nn, nn) * edge_matrix
 
         # set output weights (no X (nu + nn + 1))
         self.Wout = np.random.rand(no, nu + nn + 1)
