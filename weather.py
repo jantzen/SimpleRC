@@ -135,7 +135,7 @@ def main(filename='./data/2166184.csv'):
     print("Opening data files...")
     data_VA, data_AZ = open_data(filename)
     print("Building RC...")
-    rc = simpleRC(1000, 800, 1)
+    rc = simpleRC(1000, 100, 1)
     print("Constructing training and testing datasets for VA...")
     U_train, y_train, U_test, y_test = prep_training_and_test(data_VA, 'va')
     print(U_train.shape, y_train.shape, U_test.shape, y_test.shape)
@@ -156,7 +156,7 @@ def main(filename='./data/2166184.csv'):
     plt.plot(t, y_test, 'bo', t, preds, 'ro')
 
     print("Copying and initializing RC for use with AZ data...")
-    rc2 = simpleRC(1000, 800, 1)
+    rc2 = simpleRC(1000, 100, 1)
     rc2.Win = copy.deepcopy(rc.Win)
     rc2.Wres = copy.deepcopy(rc.Wres)
     print("Constructing training and testing datasets for AZ...")
