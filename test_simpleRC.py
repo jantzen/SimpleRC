@@ -49,7 +49,7 @@ class TestSimpleRC(unittest.TestCase):
         U = np.concatenate(U, axis=0)
         y = np.concatenate(y, axis=0)
         # train
-        self.rc.train(U, y)
+        self.rc.train(U, y, gamma=0.1)
         # predict
         preds = self.rc.predict(U)
         # compute mean error

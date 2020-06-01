@@ -20,6 +20,7 @@ def open_data(filename):
     Precip_VA = pd.to_numeric(VA['HourlyPrecipitation'], errors='coerce')
     RH_VA = pd.to_numeric(VA['HourlyRelativeHumidity'], errors='coerce')
     P_VA = pd.to_numeric(VA['HourlyStationPressure'], errors='coerce')
+    WS_VA = pd.to_numeric(VA['HourlyWindSpeed'], errors='coerce')
 
     # replace NaN values with appropriate substitutes:
     # 0 for precipitation
@@ -28,7 +29,8 @@ def open_data(filename):
     Precip_VA = Precip_VA.fillna(0.)
     RH_VA = RH_VA.fillna(method='ffill').fillna(method='bfill')
     P_VA = P_VA.fillna(method='ffill').fillna(method='bfill')
-    variables_VA = [T_VA, Precip_VA, RH_VA, P_VA]
+    WS_VA = WS_VA.fillna(method='ffill').fillna(method='bfill')
+    variables_VA = [T_VA, Precip_VA, RH_VA, P_VA, WS_VA]
 
     # verify everything is now numeric
     for var in variables_VA:
@@ -49,6 +51,7 @@ def open_data(filename):
     Precip_AZ = pd.to_numeric(AZ['HourlyPrecipitation'], errors='coerce')
     RH_AZ = pd.to_numeric(AZ['HourlyRelativeHumidity'], errors='coerce')
     P_AZ = pd.to_numeric(AZ['HourlyStationPressure'], errors='coerce')
+    WS_AZ = pd.to_numeric(AZ['HourlyWindSpeed'], errors='coerce')
 
     # replace NaN values with appropriate substitutes:
     # 0 for precipitation
@@ -57,7 +60,8 @@ def open_data(filename):
     Precip_AZ = Precip_AZ.fillna(0.)
     RH_AZ = RH_AZ.fillna(method='ffill').fillna(method='bfill')
     P_AZ = P_AZ.fillna(method='ffill').fillna(method='bfill')
-    variables_AZ = [T_AZ, Precip_AZ, RH_AZ, P_AZ]
+    WS_AZ = WS_AZ.fillna(method='ffill').fillna(method='bfill')
+    variables_AZ = [T_AZ, Precip_AZ, RH_AZ, P_AZ, WS_AZ]
 
     # verify everything is now numeric
     for var in variables_AZ:
@@ -120,21 +124,23 @@ def benchmark_predictions(U, station):
     steps = U.shape[0]
     preds = []
     for ii in range(steps):
-        tmp = U[ii,:].reshape(200, 4)
+        tmp = U[ii,:].reshape(200, 5)
         preds.append(np.mean(tmp[:,0]).reshape(1,-1))
     preds = np.concatenate(preds, axis=0)
         
     return preds
+
+
 def main(filename='./data/2166184.csv'):
     print("Opening data files...")
     data_VA, data_AZ = open_data(filename)
     print("Building RC...")
-    rc = simpleRC(800, 800, 1)
+    rc = simpleRC(1000, 800, 1)
     print("Constructing training and testing datasets for VA...")
     U_train, y_train, U_test, y_test = prep_training_and_test(data_VA, 'va')
     print(U_train.shape, y_train.shape, U_test.shape, y_test.shape)
     print("Training the RC for VA...")
-    rc.train(U_train, y_train, gamma=0.5)
+    rc.train(U_train, y_train, gamma=0.01)
     print("Testing the trained RC for VA...")
     preds = rc.predict(U_train)
     error = np.sqrt(np.mean((y_train - preds)**2))
@@ -150,14 +156,14 @@ def main(filename='./data/2166184.csv'):
     plt.plot(t, y_test, 'bo', t, preds, 'ro')
 
     print("Copying and initializing RC for use with AZ data...")
-    rc2 = simpleRC(800, 800, 1)
+    rc2 = simpleRC(1000, 800, 1)
     rc2.Win = copy.deepcopy(rc.Win)
     rc2.Wres = copy.deepcopy(rc.Wres)
     print("Constructing training and testing datasets for AZ...")
     U_train, y_train, U_test, y_test = prep_training_and_test(data_AZ, 'az')
     print(U_train.shape, y_train.shape, U_test.shape, y_test.shape)
     print("Training the RC for AZ...")
-    rc2.train(U_train, y_train, gamma=0.5)
+    rc2.train(U_train, y_train, gamma=0.01)
     print("Testing the trained RC for AZ...")
     preds = rc2.predict(U_train)
     error = np.sqrt(np.mean((y_train - preds)**2))
