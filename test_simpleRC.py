@@ -8,7 +8,7 @@ import pdb
 
 class TestSimpleRC(unittest.TestCase):
     def setUp(self):
-        self.rc = simpleRC(5, 20, 4)
+        self.rc = simpleRC(5, 20, 4, sparsity=1.0)
 
     def test_init(self):
         self.assertEqual(self.rc.Win.shape, (20, 6))

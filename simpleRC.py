@@ -1,6 +1,7 @@
 # file: simpleRC.py
 
 import numpy as np
+import warnings
 import pdb
 
 class simpleRC( object ):
@@ -19,9 +20,21 @@ class simpleRC( object ):
         self.Win = np.random.rand(nn, nu + 1)
         
         # set reservoir connections and weights (nn X nn)
-        edge_matrix = np.random.choice([0, 1], size=(nn, nn), p=[sparsity,
-            1 - sparsity])
+        edge_matrix = np.random.choice([0, 1], size=(nn, nn), 
+                p=[1 - sparsity, sparsity])
         self.Wres = np.random.rand(nn, nn) * edge_matrix
+
+        # check spectral radius and rescale
+        w, v = np.linalg.eig(self.Wres)
+        radius = np.abs(np.max(w))
+        if radius > 1:
+            print("Rescaling weight matrix to reduce spectral radius.")
+            self.Wres = self.Wres / (1.1 * radius)
+        # verify
+        w, v = np.linalg.eig(self.Wres)
+        radius = np.abs(np.max(w))
+        if radius > 1:
+            warnings.warn("Spectral radius still greater than 1.")
 
         # set output weights (no X (nu + nn + 1))
         self.Wout = np.random.rand(no, nu + nn + 1)
@@ -69,7 +82,7 @@ class simpleRC( object ):
         return(np.concatenate(out, axis=0))
 
 
-    def train(self, U, y, gamma=1.):
+    def train(self, U, y, gamma=0.5):
         """ Trains with ridge regression (see Lukusvicius, jaeger, and
         Schrauwen).
         Inputs:
