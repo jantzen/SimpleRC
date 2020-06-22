@@ -7,6 +7,9 @@ import matplotlib.pyplot as plt
 from simpleRC import *
 
 def main(plots=False, noise=False, lag=10, fore=2.):
+    # open file for saving output
+    f = open('kuramoto_output', 'w')
+
     # set up Kuramoto systems
 
     N = 6
@@ -80,29 +83,37 @@ def main(plots=False, noise=False, lag=10, fore=2.):
 
     # setup an RC
     print("Setting up RC...")
+    f.write("Setting up RC...\n")
     nn = 50
     sparsity = 0.5
     gamma = 0.01
     rc_past = simpleRC(2*N, nn, 2*N, sparsity=sparsity)
     print("Training to 'predict' past values...")
+    f.write("Training to 'predict' past values...\n")
     rc_past.train(past_train_u, past_train_y, gamma=gamma)
     preds = rc_past.predict(past_train_u)
     error = np.sqrt(np.mean((past_train_y - preds)**2))
     print("Error on training set: {}".format(error))
+    f.write("Error on training set: {}\n".format(error))
     preds = rc_past.predict(past_test_u)
     error = np.sqrt(np.mean((past_test_y - preds)**2))
     print("Error on test set: {}".format(error))
+    f.write("Error on test set: {}\n".format(error))
 
     print("Setting up RC...")
+    f.write("Setting up RC...\n")
     print("Training to forecast future states...")
+    f.write("Training to forecast future states...\n")
     rc_predict = simpleRC(2*N, nn, 2*N, sparsity=sparsity)
     rc_predict.train(train_u, train_y, gamma=gamma)
     preds = rc_predict.predict(train_u)
     error = np.sqrt(np.mean((train_y - preds)**2))
     print("Error on training set: {}".format(error))
+    f.write("Error on training set: {}\n".format(error))
     preds = rc_predict.predict(test_u)
     error = np.sqrt(np.mean((test_y - preds)**2))
     print("Error on test set: {}".format(error))
+    f.write("Error on test set: {}\n".format(error))
 
     if plots:
         plt.figure()
@@ -114,4 +125,4 @@ def main(plots=False, noise=False, lag=10, fore=2.):
 
 
 if __name__ == "__main__":
-    main(plots=True, noise=True, fore=10.)
+    main(plots=True, noise=False, fore=10.)
