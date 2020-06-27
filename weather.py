@@ -175,6 +175,19 @@ def benchmark_predictions(U, station, num_samples):
         
     return preds
 
+def scale(X):
+    # scales the input array X (assumed to have samples in rows) to have 0
+    # mean and stdev=1
+    mu = np.mean(X, axis=0)
+#    stdev = np.std((X - mu), axis=0)
+    stdev = np.abs(np.max(X - mu) - np.min(X - mu))
+    X_scaled = (X - mu) / stdev
+    return X_scaled, mu, stdev
+
+def unscale(X, mu, stdev):
+    # applies inverse transformation of scale
+    return X * stdev + mu
+
 
 def main(filename1='./data/2166184.csv', filename2='./data/2173692.csv'):
     num_samples = 100
@@ -186,9 +199,13 @@ def main(filename1='./data/2166184.csv', filename2='./data/2173692.csv'):
 
     # open file for saving output
     f = open('weather_output', 'w')
-
     print("Opening data files...")
     data_VA, data_AZ, data_KY, data_VA_KY = open_data(filename1, filename2)
+#    print("Standardizing data...")
+#    data_VA, mu_VA, stdev_VA = scale(data_VA)
+#    data_AZ, mu_AZ, stdev_AZ = scale(data_AZ)
+#    data_KY, mu_KY, stdev_KY = scale(data_KY)
+#    data_VA_KY, mu_VA_KY, stdev_VA_KY = scale(data_VA_KY)
     print("Building RC...")
     rc = simpleRC(num_samples * 5, nn, 1, sparsity=sparsity)
     print("Revervoir size: {}".format(rc.Wres.shape))
@@ -220,6 +237,10 @@ def main(filename1='./data/2166184.csv', filename2='./data/2173692.csv'):
     print("Error on test set: {}".format(error))
     f.write("Error on test set: {}\n".format(error))
     t = np.arange(y_test.shape[0])
+    print("Saving the linear output layer for VA...")
+    np.savetxt('Wout_VA', rc.Wout)
+    print("Saving the reservoir weights for VA...")
+    np.savetxt('W_VA', rc.Wres)
     print("Getting benchmark predictions for VA...")
     f.write("Getting benchmark predictions for VA...\n")
     preds = benchmark_predictions(U_test, 'va', num_samples)
@@ -288,6 +309,7 @@ def main(filename1='./data/2166184.csv', filename2='./data/2173692.csv'):
     plt.plot(t, y_test, 'bo', t, preds, 'ro')
     plt.title("Phoenix")
     plt.show()
+    f.close()
 
 if __name__ == '__main__':
     main()
