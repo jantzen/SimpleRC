@@ -2,6 +2,7 @@
 
 import numpy as np
 import warnings
+import matplotlib.pyplot as plt
 import pdb
 
 class simpleRC( object ):
@@ -17,13 +18,11 @@ class simpleRC( object ):
         self.no = no
 
         # set input weights (nn X nu)
-#        self.Win = np.random.rand(nn, nu + 1)
         self.Win = np.random.normal(size=(nn, nu + 1))
         
         # set reservoir connections and weights (nn X nn)
         edge_matrix = np.random.choice([0, 1], size=(nn, nn), 
                 p=[1 - sparsity, sparsity])
-#        self.Wres = np.random.rand(nn, nn) * edge_matrix
         self.Wres = np.random.normal(size=(nn, nn)) * edge_matrix
 
         # check spectral radius and rescale
@@ -39,7 +38,6 @@ class simpleRC( object ):
             warnings.warn("Spectral radius still greater than 1.")
 
         # set output weights (no X (nu + nn + 1))
-#        self.Wout = np.random.rand(no, nu + nn + 1)
         self.Wout = np.random.normal(size=(no, nu + nn + 1))
 
         # initialize reservoir activations
@@ -85,9 +83,51 @@ class simpleRC( object ):
         return(np.concatenate(out, axis=0))
 
 
+    def visual_train(self, U, y, gamma=0.5):
+        """ Trains with ridge regression (see Lukusvicius, jaeger, and
+        Schrauwen). Returns internal states for animation.
+        Inputs:
+            U: an ss X nu array where ss is the sample size 
+            y: an ss X no array of target outputs.
+        """
+        self.zero_in_out()
+        # Build concatenated matrices
+        X = []
+        Y = y.T
+        steps = U.shape[0]
+        # figure out how many zeros are needed to pad self.x to make a square
+        tmp = np.max(self.x.shape)
+        ns = int(np.ceil(np.sqrt(tmp)))
+        pad_length = ns ** 2 - tmp
+        # prep for saving plots
+        ims = []
+        x_pad = np.concatenate([self.x.reshape(1,-1),
+            np.zeros((1,pad_length))], axis=1)
+        im = plt.imshow(x_pad.reshape(ns,ns), animated=True)
+        ax = plt.gca()
+        ax.xaxis.set_visible(False)
+        ax.yaxis.set_visible(False)
+        ims.append([im])
+        
+        for ii in range(steps):
+            tmp = U[ii,:].reshape(-1,1)
+            self.update(tmp)
+            x_pad = np.concatenate([self.x.reshape(1,-1),
+                np.zeros((1,pad_length))], axis=1)
+            im = plt.imshow((x_pad.reshape(ns,ns) + 1.) / 2., animated=True, cmap='plasma')
+            ims.append([im])
+            X.append(np.vstack((np.ones((1,1)), tmp, self.x)))
+        X = np.concatenate(X, axis=1)
+        I = np.identity(X.shape[0])
+        self.Wout = np.dot(np.dot(Y, X.T), np.linalg.inv(np.dot(X, X.T) +
+            gamma**2 * I))
+
+        return ims
+
+
     def train(self, U, y, gamma=0.5):
         """ Trains with ridge regression (see Lukusvicius, jaeger, and
-        Schrauwen).
+        Schrauwen). 
         Inputs:
             U: an ss X nu array where ss is the sample size 
             y: an ss X no array of target outputs.

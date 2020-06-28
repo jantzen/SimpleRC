@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from simpleRC import *
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import copy
 import pdb
 
@@ -190,10 +191,12 @@ def unscale(X, mu, stdev):
 
 
 def main(filename1='./data/2166184.csv', filename2='./data/2173692.csv'):
+    fg = plt.figure()
+
     num_samples = 100
 #    nn = 500
 #    sparsity = 0.01
-    nn = 50
+    nn = 49
     sparsity = 0.9
     gamma = 0.01
 
@@ -225,7 +228,9 @@ def main(filename1='./data/2166184.csv', filename2='./data/2173692.csv'):
 
     print("Training the RC for VA...")
     f.write("Training the RC for VA...\n")
-    rc.train(U_train, y_train, gamma=gamma)
+    ims = rc.visual_train(U_train, y_train, gamma=gamma)
+    ani = animation.ArtistAnimation(fg, ims, interval=33, repeat_delay=500, blit=True)
+    ani.save('weather_viz.mp4')
     print("Testing the trained RC for VA...")
     f.write("Testing the trained RC for VA...\n")
     preds = rc.predict(U_train)

@@ -4,9 +4,15 @@ from scipy.integrate import ode
 from scipy import zeros_like
 from scipy.stats import linregress
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 from simpleRC import *
 
-def main(plots=False, noise=False, lag=10, fore=2.):
+def main(plots=False, noise=False, lag=10, fore=2., animate=True):
+
+    if animate:
+        # set up figure for animating
+        fg = plt.figure()
+
     # open file for saving output
     f = open('kuramoto_output', 'w')
 
@@ -67,8 +73,7 @@ def main(plots=False, noise=False, lag=10, fore=2.):
     x = x.T
 
     # data for predicting the past (checking the RC's memory)
-    nn = x.shape[0]
-    cut = int(0.8 * nn)
+    cut = int(0.8 * x.shape[0])
     past_train_u = x[:cut, :][lag:,:]
     past_train_y = x[:cut, :][:-lag,:]
     past_test_u = x[cut:,:][lag:,:]
@@ -84,9 +89,9 @@ def main(plots=False, noise=False, lag=10, fore=2.):
     # setup an RC
     print("Setting up RC...")
     f.write("Setting up RC...\n")
-    nn = 50
+    nn = 49
     sparsity = 0.5
-    gamma = 0.01
+    gamma = 0.1
     rc_past = simpleRC(2*N, nn, 2*N, sparsity=sparsity)
     print("Training to 'predict' past values...")
     f.write("Training to 'predict' past values...\n")
@@ -105,7 +110,10 @@ def main(plots=False, noise=False, lag=10, fore=2.):
     print("Training to forecast future states...")
     f.write("Training to forecast future states...\n")
     rc_predict = simpleRC(2*N, nn, 2*N, sparsity=sparsity)
-    rc_predict.train(train_u, train_y, gamma=gamma)
+    if animate:
+        ims = rc_predict.visual_train(train_u, train_y, gamma=gamma)
+    else:
+        rc_predict.train(train_u, train_y, gamma=gamma)
     preds = rc_predict.predict(train_u)
     error = np.sqrt(np.mean((train_y - preds)**2))
     print("Error on training set: {}".format(error))
@@ -115,14 +123,19 @@ def main(plots=False, noise=False, lag=10, fore=2.):
     print("Error on test set: {}".format(error))
     f.write("Error on test set: {}\n".format(error))
 
+    if animate:
+        ani = animation.ArtistAnimation(fg, ims, interval=33, repeat_delay=500, blit=True)
+        ani.save('kuramoto_viz.mp4')
+
     if plots:
         plt.figure()
         for ii in range(2*N):
             plt.plot(t[cut:][stop:], test_y[:,ii], 'bo')
             plt.plot(t[cut:][stop:], preds[:,ii], 'ro')
-        plt.show()
+
+    plt.show()
 
 
 
 if __name__ == "__main__":
-    main(plots=True, noise=False, fore=10.)
+    main(plots=True, noise=False, fore=10., animate=True)
