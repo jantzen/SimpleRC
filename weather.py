@@ -194,18 +194,18 @@ def main(filename1='./data/2166184.csv', filename2='./data/2173692.csv'):
 #    nn = 500
 #    sparsity = 0.01
     nn = 50
-    sparsity = 0.5
+    sparsity = 0.9
     gamma = 0.01
 
     # open file for saving output
     f = open('weather_output', 'w')
     print("Opening data files...")
     data_VA, data_AZ, data_KY, data_VA_KY = open_data(filename1, filename2)
-#    print("Standardizing data...")
-#    data_VA, mu_VA, stdev_VA = scale(data_VA)
-#    data_AZ, mu_AZ, stdev_AZ = scale(data_AZ)
-#    data_KY, mu_KY, stdev_KY = scale(data_KY)
-#    data_VA_KY, mu_VA_KY, stdev_VA_KY = scale(data_VA_KY)
+    print("Normalizing data...")
+    data_VA, mu_VA, stdev_VA = scale(data_VA)
+    data_AZ, mu_AZ, stdev_AZ = scale(data_AZ)
+    data_KY, mu_KY, stdev_KY = scale(data_KY)
+    data_VA_KY, mu_VA_KY, stdev_VA_KY = scale(data_VA_KY)
     print("Building RC...")
     rc = simpleRC(num_samples * 5, nn, 1, sparsity=sparsity)
     print("Revervoir size: {}".format(rc.Wres.shape))

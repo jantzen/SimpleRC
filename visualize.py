@@ -1,10 +1,14 @@
-# file: simpleRC.py
-
+from __future__ import division
 import numpy as np
-import warnings
+from scipy.integrate import ode
+from scipy import zeros_like
+from scipy.stats import linregress
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import time
 import pdb
 
-class simpleRC( object ):
+class visualRC( object ):
 
     def __init__(self,
             nu, # size of input layer
@@ -17,13 +21,11 @@ class simpleRC( object ):
         self.no = no
 
         # set input weights (nn X nu)
-#        self.Win = np.random.rand(nn, nu + 1)
         self.Win = np.random.normal(size=(nn, nu + 1))
         
         # set reservoir connections and weights (nn X nn)
         edge_matrix = np.random.choice([0, 1], size=(nn, nn), 
                 p=[1 - sparsity, sparsity])
-#        self.Wres = np.random.rand(nn, nn) * edge_matrix
         self.Wres = np.random.normal(size=(nn, nn)) * edge_matrix
 
         # check spectral radius and rescale
@@ -39,7 +41,6 @@ class simpleRC( object ):
             warnings.warn("Spectral radius still greater than 1.")
 
         # set output weights (no X (nu + nn + 1))
-#        self.Wout = np.random.rand(no, nu + nn + 1)
         self.Wout = np.random.normal(size=(no, nu + nn + 1))
 
         # initialize reservoir activations
@@ -97,12 +98,108 @@ class simpleRC( object ):
         X = []
         Y = y.T
         steps = U.shape[0]
+
+        # prep for plot
+        ims = []
+#        im = plt.imshow(self.x.reshape(8,8), animated=True)
+#        ims.append([im])
         for ii in range(steps):
             tmp = U[ii,:].reshape(-1,1)
             self.update(tmp)
+#            pdb.set_trace()
+            im = plt.imshow(self.x.reshape(8,8), animated=True)
+            ims.append([im])
             X.append(np.vstack((np.ones((1,1)), tmp, self.x)))
         X = np.concatenate(X, axis=1)
         I = np.identity(X.shape[0])
         self.Wout = np.dot(np.dot(Y, X.T), np.linalg.inv(np.dot(X, X.T) +
             gamma**2 * I))
+
+        return ims
  
+def main(noise=False, lag=10, fore=2.):
+
+    fg = plt.figure()
+
+    # set up Kuramoto systems
+
+    N = 6
+    K = 0.01
+
+    omega= np.random.rand(N) * 2. * np.pi
+
+    def model(t, theta, arg1):
+        K = arg1[0]
+        omega = arg1[1]
+        dtheta = zeros_like(theta)
+        sum1 = [0.] * N
+        for ii in range(N):
+            for jj in range(N):
+                sum1[ii] += np.sin(theta[jj] - theta[ii])
+                
+            dtheta[ii] = omega[ii] + (K / N) * sum1[ii]
+        
+        return dtheta
+
+    # initial condition
+    theta0 = np.linspace(0.1, 2., N)
+
+    # time points
+    t0 = 0.
+    t1 = 100.
+    resolution = 10000
+    dt = (t1 - t0) / resolution
+
+    # solve ODE at each timestep
+    r = ode(model).set_integrator('lsoda')
+    r.set_initial_value(theta0, t0).set_f_params([K, omega])
+    x = []
+    t = []
+    raw_theta_untrans1 = []
+    while r.successful() and r.t < t1:
+        t.append(r.t)
+        tmp = r.integrate(r.t+dt)
+        raw_theta_untrans1.append(tmp.reshape(-1,1))
+        x.append(np.array([np.cos(tmp), np.sin(tmp)]).reshape(-1,1))
+
+    x = np.concatenate(x, axis=1)
+
+    c = 0.2
+
+    if noise:
+        x += c * np.random.random_sample(x.shape)
+
+    # prepare training and test data
+    x = x.T
+
+    # data for predicting the future
+    nn = x.shape[0]
+    cut = int(0.8 * nn)
+    stop = int(fore/dt)
+    train_u = x[:cut, :][:-stop,:]
+    train_y = x[:cut, :][stop:,:]
+    test_u = x[cut:,:][:-stop,:]
+    test_y = x[cut:,:][stop:,:]
+
+    # setup an RC
+    print("Setting up RC...")
+    nn = 64
+    sparsity = 0.5
+    gamma = 0.01
+
+    rc_predict = visualRC(2*N, nn, 2*N, sparsity=sparsity)
+    ims = rc_predict.train(train_u, train_y, gamma=gamma)
+    preds = rc_predict.predict(train_u)
+    error = np.sqrt(np.mean((train_y - preds)**2))
+    print("Error on training set: {}".format(error))
+    preds = rc_predict.predict(test_u)
+    error = np.sqrt(np.mean((test_y - preds)**2))
+    print("Error on test set: {}".format(error))
+    print("Building animation...")
+    ani = animation.ArtistAnimation(fg, ims, interval=33, repeat_delay=500, blit=True)
+
+    plt.show()
+
+
+if __name__ == "__main__":
+    main(noise=False, fore=10.)
