@@ -101,13 +101,16 @@ class visualRC( object ):
 
         # prep for plot
         ims = []
-#        im = plt.imshow(self.x.reshape(8,8), animated=True)
-#        ims.append([im])
+        im = plt.imshow(self.x.reshape(8,8), animated=True)
+        ax = plt.gca()
+        ax.xaxis.set_visible(False)
+        ax.yaxis.set_visible(False)
+        ims.append([im])
         for ii in range(steps):
             tmp = U[ii,:].reshape(-1,1)
             self.update(tmp)
 #            pdb.set_trace()
-            im = plt.imshow(self.x.reshape(8,8), animated=True)
+            im = plt.imshow((self.x.reshape(8,8) + 1.) / 2., animated=True, cmap='plasma')
             ims.append([im])
             X.append(np.vstack((np.ones((1,1)), tmp, self.x)))
         X = np.concatenate(X, axis=1)
@@ -197,6 +200,7 @@ def main(noise=False, lag=10, fore=2.):
     print("Error on test set: {}".format(error))
     print("Building animation...")
     ani = animation.ArtistAnimation(fg, ims, interval=33, repeat_delay=500, blit=True)
+    ani.save('kuramoto_viz.mp4')
 
     plt.show()
 
