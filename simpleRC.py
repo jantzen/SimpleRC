@@ -3,6 +3,7 @@
 import numpy as np
 import warnings
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import pdb
 
 class simpleRC( object ):
@@ -83,10 +84,11 @@ class simpleRC( object ):
         return(np.concatenate(out, axis=0))
 
 
-    def visual_train(self, U, y, gamma=0.5):
+    def visual_train(self, U, y, gamma=0.5, filename=None):
         """ Trains with ridge regression (see Lukusvicius, jaeger, and
         Schrauwen). Returns internal states for animation.
         Inputs:
+            ax: axes object for drawing
             U: an ss X nu array where ss is the sample size 
             y: an ss X no array of target outputs.
         """
@@ -100,13 +102,18 @@ class simpleRC( object ):
         ns = int(np.ceil(np.sqrt(tmp)))
         pad_length = ns ** 2 - tmp
         # prep for saving plots
+        fg = plt.figure()
+        ax = plt.axes()
         ims = []
         x_pad = np.concatenate([self.x.reshape(1,-1),
             np.zeros((1,pad_length))], axis=1)
-        im = plt.imshow(x_pad.reshape(ns,ns), animated=True)
-        ax = plt.gca()
+        im = ax.imshow(x_pad.reshape(ns,ns), animated=True, cmap='plasma',
+                vmin=-1., vmax=1., interpolation='None')
+#        ax = plt.gca()
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
+        cbar = ax.figure.colorbar(im, ax=ax)
+        cbar.ax.set_ylabel("Activation", rotation=-90, va="bottom")
         ims.append([im])
         
         for ii in range(steps):
@@ -114,7 +121,8 @@ class simpleRC( object ):
             self.update(tmp)
             x_pad = np.concatenate([self.x.reshape(1,-1),
                 np.zeros((1,pad_length))], axis=1)
-            im = plt.imshow((x_pad.reshape(ns,ns) + 1.) / 2., animated=True, cmap='plasma')
+            im = ax.imshow((x_pad.reshape(ns,ns) + 1.) / 2., animated=True,
+                    cmap='plasma', vmin=-1., vmax=1., interpolation='None')
             ims.append([im])
             X.append(np.vstack((np.ones((1,1)), tmp, self.x)))
         X = np.concatenate(X, axis=1)
@@ -122,7 +130,14 @@ class simpleRC( object ):
         self.Wout = np.dot(np.dot(Y, X.T), np.linalg.inv(np.dot(X, X.T) +
             gamma**2 * I))
 
-        return ims
+        print("Building animation...")
+        ani = animation.ArtistAnimation(fg, ims, interval=33, repeat_delay=500, blit=True)
+        if filename is not None:
+            print("Saving animation...")
+            ani.save(filename)
+            return ani
+        else:
+            return ani
 
 
     def train(self, U, y, gamma=0.5):

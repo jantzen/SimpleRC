@@ -191,7 +191,6 @@ def unscale(X, mu, stdev):
 
 
 def main(filename1='./data/2166184.csv', filename2='./data/2173692.csv'):
-    fg = plt.figure()
 
     num_samples = 100
 #    nn = 500
@@ -228,9 +227,8 @@ def main(filename1='./data/2166184.csv', filename2='./data/2173692.csv'):
 
     print("Training the RC for VA...")
     f.write("Training the RC for VA...\n")
-    ims = rc.visual_train(U_train, y_train, gamma=gamma)
-    ani = animation.ArtistAnimation(fg, ims, interval=33, repeat_delay=500, blit=True)
-    ani.save('weather_viz.mp4')
+#    rc.visual_train(U_train, y_train, gamma=gamma, filename="weather_viz.mp4")
+    rc.train(U_train, y_train, gamma=gamma)
     print("Testing the trained RC for VA...")
     f.write("Testing the trained RC for VA...\n")
     preds = rc.predict(U_train)

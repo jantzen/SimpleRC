@@ -4,14 +4,9 @@ from scipy.integrate import ode
 from scipy import zeros_like
 from scipy.stats import linregress
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 from simpleRC import *
 
 def main(plots=False, noise=False, lag=10, fore=2., animate=True):
-
-    if animate:
-        # set up figure for animating
-        fg = plt.figure()
 
     # open file for saving output
     f = open('kuramoto_output', 'w')
@@ -111,7 +106,9 @@ def main(plots=False, noise=False, lag=10, fore=2., animate=True):
     f.write("Training to forecast future states...\n")
     rc_predict = simpleRC(2*N, nn, 2*N, sparsity=sparsity)
     if animate:
-        ims = rc_predict.visual_train(train_u, train_y, gamma=gamma)
+        print("Building animation while training...")
+        rc_predict.visual_train(train_u, train_y, gamma=gamma,
+            filename='kuramoto_viz.mp4')
     else:
         rc_predict.train(train_u, train_y, gamma=gamma)
     preds = rc_predict.predict(train_u)
@@ -122,10 +119,6 @@ def main(plots=False, noise=False, lag=10, fore=2., animate=True):
     error = np.sqrt(np.mean((test_y - preds)**2))
     print("Error on test set: {}".format(error))
     f.write("Error on test set: {}\n".format(error))
-
-    if animate:
-        ani = animation.ArtistAnimation(fg, ims, interval=33, repeat_delay=500, blit=True)
-        ani.save('kuramoto_viz.mp4')
 
     if plots:
         plt.figure()
@@ -138,4 +131,4 @@ def main(plots=False, noise=False, lag=10, fore=2., animate=True):
 
 
 if __name__ == "__main__":
-    main(plots=True, noise=False, fore=10., animate=True)
+    main(plots=True, noise=False, fore=10., animate=False)
