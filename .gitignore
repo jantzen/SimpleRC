@@ -2,4 +2,7 @@
 *.mp4
 *.swp
 *.swo
-
+az_*
+*_output
+va_*
+W*

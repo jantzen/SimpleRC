@@ -1,4 +1,4 @@
-# file: weather.py
+# file: weather2.py
 
 import pandas as pd
 import numpy as np
@@ -52,6 +52,15 @@ def open_data(filename1, filename2):
     for var in variables_VA:
         tmp.append(var.to_numpy().reshape(-1,1))
     data_VA = np.concatenate(tmp, axis=1)
+
+    # plot for verification
+    plt.figure()
+    plt.title('Virginia data')
+    t = np.arange(data_VA.shape[0]) / 72.
+    for ii in range(5):
+        plt.plot(t, data_VA[:,ii])
+    plt.title("Virginia data")
+    plt.legend(('T_VA', 'Precip_VA', 'RH_VA', 'P_VA', 'WS_VA'))
 
     # assemble Arizona data
     # choose desired columns and convert to numeric
@@ -123,34 +132,31 @@ def open_data(filename1, filename2):
     return data_VA, data_AZ, data_KY, data_VA_KY
 
 
-def prep_training_and_test(data, station, num_samples):
+def prep_training_and_test(data, num_samples):
     """ Train the RC to use num_samples of data to predict the hourly
-    temperature 72 hours in advance. There are 72 samples a day for the
+    temperature at the next time step. There are 72 samples a day for the
     Blacksburg, VA data and 30 samples a day for the Phoenix, AZ data.
     """
     print("Data shape: {}".format(data.shape))
+#    U = data[:-1,:]
+#    y = data[1:,:]
     U = []
     y = []
-    if station == "va":
-        k = int(72 / 24 * 72)
-    elif station == "az":
-        k = int(30 / 24 * 72)
-    elif station == "va_ky":
-        k = int(24/24 * 72)
-    steps = data.shape[0] - num_samples - k 
-    for ii in range(steps):
+
+    rows = data.shape[0] - num_samples
+    for ii in range(rows):
 #        tmp_U = data[ii * 200 : (ii + 1) * 200, :]
 #        tmp_y = data[(ii + 1) * 200 + k, 0].reshape(1,-1)
         tmp_U = data[ii : ii + num_samples, :]
-        tmp_y = data[ii + num_samples + k, 0].reshape(1,-1)
+        tmp_y = data[ii + 1 : ii + num_samples + 1, :]
         U.append(tmp_U.flatten().reshape(1, -1))
-        y.append(tmp_y.reshape(1, -1))
+        y.append(tmp_y.flatten().reshape(1, -1))
     U = np.concatenate(U, axis=0)
     y = np.concatenate(y, axis=0)
     print(U.shape, y.shape)
 
-    # split into training (70%) and testing (30%)
-    split = int(0.7 * U.shape[0])
+    # split into training (95%) and testing (5%)
+    split = int(0.89 * U.shape[0])
     U_train = U[:split, :]
     y_train = y[:split, :]
     U_test = U[split:, :]
@@ -159,32 +165,14 @@ def prep_training_and_test(data, station, num_samples):
     return U_train, y_train, U_test, y_test
 
 
-def benchmark_predictions(U, station, num_samples):
-    """ Estimates the temperature 72 hours in advance by averaging the preceding
-    72 hours.
-    """
-    if station == "va":
-        k = int(72 / 24 * 72)
-    elif station == "az":
-        k = int(30 / 24 * 72)
-    steps = U.shape[0]
-    preds = []
-    for ii in range(steps):
-        tmp = U[ii,:].reshape(num_samples, 5)
-        preds.append(np.mean(tmp[:k,0]).reshape(1,-1))
-    preds = np.concatenate(preds, axis=0)
-        
-    return preds
-
 def scale(X):
     # scales the input array X (assumed to have samples in rows) to have 0
     # mean and stdev=1
     mu = np.mean(X, axis=0)
-#    stdev = np.std((X - mu), axis=0)
-#    stdev = np.abs(np.max(X - mu) - np.min(X - mu))
     stdev = np.std(X, axis=0)
     X_scaled = (X - mu) / stdev
     return X_scaled, mu, stdev
+
 
 def unscale(X, mu, stdev):
     # applies inverse transformation of scale
@@ -192,12 +180,11 @@ def unscale(X, mu, stdev):
 
 
 def main(filename1='./data/2166184.csv', filename2='./data/2173692.csv'):
-
-    num_samples = 100
+    num_samples = 72 * 3
 #    nn = 500
 #    sparsity = 0.01
     nn = 49
-    sparsity = 0.9
+    sparsity = 0.01
     gamma = 0.01
 
     # open file for saving output
@@ -209,20 +196,33 @@ def main(filename1='./data/2166184.csv', filename2='./data/2173692.csv'):
     data_AZ, mu_AZ, stdev_AZ = scale(data_AZ)
     data_KY, mu_KY, stdev_KY = scale(data_KY)
     data_VA_KY, mu_VA_KY, stdev_VA_KY = scale(data_VA_KY)
+
+    # plot scaled data for verification
+    plt.figure()
+    plt.title('Scaled Virginia data')
+    t = np.arange(data_VA.shape[0]) / 72.
+    for ii in range(5):
+        plt.plot(t, data_VA[:,ii])
+    plt.legend(('T_VA', 'Precip_VA', 'RH_VA', 'P_VA', 'WS_VA'))
+
+
     print("Building RC...")
-    rc = simpleRC(num_samples * 5, nn, 1, sparsity=sparsity)
+    rc = simpleRC(5 * num_samples, nn, 5 * num_samples, sparsity=sparsity)
     print("Revervoir size: {}".format(rc.Wres.shape))
     f.write(("Revervoir size: {}\n".format(rc.Wres.shape)))
 
     print("Constructing training and testing datasets for VA...")
     f.write("Constructing training and testing datasets for VA...\n")
-    U_train, y_train, U_test, y_test = prep_training_and_test(data_VA, 'va',
+    U_train, y_train, U_test, y_test = prep_training_and_test(data_VA,
             num_samples)
     print(U_train.shape, y_train.shape, U_test.shape, y_test.shape)
 
     # test untrained accuracy
-    preds = rc.predict(U_train)
-    error = np.sqrt(np.mean((y_train - preds)**2))
+#    steps = U_train.shape[0]
+    steps = 72 * 7
+    U_init = U_train[0,:].reshape(-1,1)
+    preds = rc.run(U_init, steps)
+    error = np.sqrt(np.mean(np.linalg.norm((y_train[:steps,:] - preds), axis=1)))
     print("Sanity check: untrained prediction accuracy = {}".format(error))
     f.write("Sanity check: untrained prediction accuracy = {}\n".format(error))
 
@@ -232,59 +232,63 @@ def main(filename1='./data/2166184.csv', filename2='./data/2173692.csv'):
     rc.train(U_train, y_train, gamma=gamma)
     print("Testing the trained RC for VA...")
     f.write("Testing the trained RC for VA...\n")
-    preds = rc.predict(U_train)
-    error = np.sqrt(np.mean((y_train - preds)**2))
+    preds = rc.run(U_init, steps)
+    error = np.sqrt(np.mean(np.linalg.norm((y_train[:steps,:] - preds), axis=1)))
     print("Error on training set: {}".format(error))
     f.write("Error on training set: {}\n".format(error))
-    preds = rc.predict(U_test)
-    error = np.sqrt(np.mean((y_test - preds)**2))
+    U_init = U_test[0,:].reshape(-1,1)
+    preds = rc.run(U_init, steps)
+    error = np.sqrt(np.mean(np.linalg.norm((y_test[:steps,:] - preds), axis=1)))
     print("Error on test set: {}".format(error))
     f.write("Error on test set: {}\n".format(error))
-    t = np.arange(y_test.shape[0])
+    t = np.arange(y_test.shape[0]) / 72.
     print("Saving the linear output layer for VA...")
-    np.savetxt('Wout_VA', rc.Wout)
+    np.savetxt('Wout2_VA', rc.Wout)
     print("Saving the reservoir weights for VA...")
-    np.savetxt('W_VA', rc.Wres)
-    print("Getting benchmark predictions for VA...")
-    f.write("Getting benchmark predictions for VA...\n")
-    preds = benchmark_predictions(U_test, 'va', num_samples)
-    error = np.sqrt(np.mean((y_test - preds)**2))
-    print("Benchmark RMS for VA: {}".format(error))
-    f.write("Benchmark RMS for VA: {}\n".format(error))
-    plt.plot(t, y_test, 'bo', t, preds, 'ro')
-    plt.title("Blacksburg")
-    np.savetxt('va_y_test', y_test)
-    np.savetxt('va_preds', preds)
-
-    print("Training a new RC for VA using KY data supplement...")
-    f.write("Training a new RC for VA using KY data supplement...\n")
-    U_train, y_train, U_test, y_test = prep_training_and_test(data_VA_KY,
-            'va_ky', num_samples)
-    rc_supp = simpleRC(num_samples * 5 * 2, nn, 1, sparsity=sparsity)
-    rc_supp.train(U_train, y_train, gamma=gamma)
-    print("Testing the trained RC for VA...")
-    f.write("Testing the trained RC for VA...\n")
-    preds = rc_supp.predict(U_train)
-    error = np.sqrt(np.mean((y_train - preds)**2))
-    print("Error on training set: {}".format(error))
-    f.write("Error on training set: {}\n".format(error))
-    preds = rc_supp.predict(U_test)
-    error = np.sqrt(np.mean((y_test - preds)**2))
-    print("Error on test set: {}".format(error))
-    f.write("Error on test set: {}\n".format(error))
-    t = np.arange(y_test.shape[0])
+    np.savetxt('W2_VA', rc.Wres)
+    # unscale the data to plot
+    y_units = unscale(y_test[:,-5:], mu_VA, stdev_VA)
+    preds_units = unscale(preds[:,-5:], mu_VA, stdev_VA)
     plt.figure()
-    plt.plot(t, y_test, 'bo', t, preds, 'ro')
-    plt.title("Blacksburg (supplemented with Lexington data)")
-
+    for ii,label in enumerate(['T_VA', 'Precip_VA', 'RH_VA', 'P_VA', 'WS_VA']):
+        plt.subplot(5,1,ii+1)
+        plt.plot(t[:steps], y_units[:steps,ii], 'bo', t[:steps], preds_units[:steps,ii], 'r-')
+        plt.title(label)
+        plt.legend(('actual','predicted'))
+    np.savetxt('va_y_test2', y_test)
+    np.savetxt('va_preds2', preds)
+    
+#    print("Training a new RC for VA using KY data supplement...")
+#    f.write("Training a new RC for VA using KY data supplement...\n")
+#    U_train, y_train, U_test, y_test = prep_training_and_test(data_VA_KY,
+#             num_samples)
+#    rc_supp = simpleRC(5 * num_samples, nn, 5 * num_samples, sparsity=sparsity)
+#    rc_supp.train(U_train, y_train, gamma=gamma)
+#    print("Testing the trained RC for VA...")
+#    f.write("Testing the trained RC for VA...\n")
+#    U_init = U_train[0,:].reshape(-1,1)
+#    preds = rc.run(U_init, steps)
+#    error = np.sqrt(np.mean(np.linalg.norm((y_train[:steps,:] - preds), axis=1)))
+#    print("Error on training set: {}".format(error))
+#    f.write("Error on training set: {}\n".format(error))
+#    U_init = U_test[0,:].reshape(-1,1)
+#    preds = rc.run(U_init, steps)
+#    error = np.sqrt(np.mean(np.linalg.norm((y_test[:steps,:] - preds), axis=1)))
+#    print("Error on test set: {}".format(error))
+#    f.write("Error on test set: {}\n".format(error))
+#    t = np.arange(y_test.shape[0])
+#    plt.figure()
+#    plt.plot(t, y_test, 'bo', t, preds, 'ro')
+#    plt.title("Blacksburg (supplemented with Lexington data)")
+#
     print("Copying and initializing original RC for use with AZ data...")
     f.write("Copying and initializing original RC for use with AZ data...\n")
-    rc2 = simpleRC(num_samples * 5, nn, 1, sparsity=sparsity)
+    rc2 = simpleRC(5 * num_samples, nn, 5 * num_samples, sparsity=sparsity)
     rc2.Win = copy.deepcopy(rc.Win)
     rc2.Wres = copy.deepcopy(rc.Wres)
     print("Constructing training and testing datasets for AZ...")
     f.write("Constructing training and testing datasets for AZ...\n")
-    U_train, y_train, U_test, y_test = prep_training_and_test(data_AZ, 'az',
+    U_train, y_train, U_test, y_test = prep_training_and_test(data_AZ, 
             num_samples)
     print(U_train.shape, y_train.shape, U_test.shape, y_test.shape)
     print("Training the RC for AZ...")
@@ -292,26 +296,33 @@ def main(filename1='./data/2166184.csv', filename2='./data/2173692.csv'):
     rc2.train(U_train, y_train, gamma=gamma)
     print("Testing the trained RC for AZ...")
     f.write("Testing the trained RC for AZ...\n")
-    preds = rc2.predict(U_train)
-    error = np.sqrt(np.mean((y_train - preds)**2))
+    U_init = U_train[0,:].reshape(-1,1)
+    preds = rc2.run(U_init, steps)
+    error = np.sqrt(np.mean(np.linalg.norm((y_train[:steps,:] - preds), axis=1)))
     print("Error on training set: {}".format(error))
     f.write("Error on training set: {}\n".format(error))
-    preds = rc2.predict(U_test)
-    error = np.sqrt(np.mean((y_test - preds)**2))
+    U_init = U_test[0,:].reshape(-1,1)
+    preds = rc2.run(U_init, steps)
+    error = np.sqrt(np.mean(np.linalg.norm((y_test[:steps,:] - preds), axis=1)))
     print("Error on test set: {}".format(error))
     f.write("Error on test set: {}\n".format(error))
-    t = np.arange(y_test.shape[0])
-    print("Getting benchmark predictions for AZ...")
-    f.write("Getting benchmark predictions for AZ...\n")
-    preds = benchmark_predictions(U_test, 'az', num_samples)
-    error = np.sqrt(np.mean((y_test - preds)**2))
     print("Benchmark RMS for AZ: {}".format(error))
     f.write("Benchmark RMS for AZ: {}\n".format(error))
-    np.savetxt('az_y_test', y_test)
-    np.savetxt('az_preds', preds)
+    np.savetxt('az_y_test2', y_test)
+    np.savetxt('az_preds2', preds)
+    # unscale the data to plot
+    t = np.arange(y_test.shape[0]) / 72.
+    y_units = unscale(y_test[:,-5:], mu_AZ, stdev_AZ)
+    preds_units = unscale(preds[:,-5:], mu_AZ, stdev_AZ)
+    # plot
     plt.figure()
-    plt.plot(t, y_test, 'bo', t, preds, 'ro')
-    plt.title("Phoenix")
+    for ii,label in enumerate(['T_AZ', 'Precip_AZ', 'RH_AZ', 'P_AZ', 'WS_AZ']):
+        plt.subplot(5,1,ii+1)
+        plt.plot(t[:steps], y_units[:steps,ii], 'bo', t[:steps], preds_units[:steps,ii], 'r-')
+        plt.title(label)
+        plt.legend(('actual','predicted'))
+    np.savetxt('az_y_test2', y_test)
+    np.savetxt('az_preds2', preds)
     plt.show()
     f.close()
 

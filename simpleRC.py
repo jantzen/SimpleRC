@@ -83,6 +83,29 @@ class simpleRC( object ):
             out.append(self.y.T)
         return(np.concatenate(out, axis=0))
 
+    
+    def run(self, U_init, steps):
+        """ Runs the RC on its own predictions for steps.
+
+            Inputs:
+                U: a 1 x nu array
+            Output:
+                out: an steps x nu array
+        """
+        # verify that this RC produces output of the same dimension as input
+        self.zero_in_out()
+        self.update(U_init)
+        tmp = self.y
+        if not tmp.shape == U_init.shape:
+            raise ValueError("The output dimensions do not match input.")
+        self.zero_in_out()
+        out = [U_init]
+        for ii in range(steps):
+            tmp = out[ii]
+            self.update(tmp)
+            out.append(self.y)
+        return(np.concatenate(out, axis=1).T[:-1,:])
+
 
     def visual_train(self, U, y, gamma=0.5, filename=None):
         """ Trains with ridge regression (see Lukusvicius, jaeger, and
