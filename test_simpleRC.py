@@ -1,7 +1,8 @@
 # file: test_simpleRC.py
 
 import unittest
-from simpleRC import *
+from simpleRC import simpleRC 
+from stochasticRC import stochasticRC 
 import numpy as np
 import pdb
 
@@ -72,6 +73,9 @@ class TestSimpleRC(unittest.TestCase):
         error = np.sqrt(np.mean(np.sum((y2 - preds)**2, axis=1)))
         print(error)
 
+class TestStochasticRC(TestSimpleRC):
+    def setUp(self):
+        self.rc = stochasticRC(5, 20, 4, sparsity=1.0, ns=0)
 
 if __name__ == '__main__':
     unittest.main()
