@@ -3,6 +3,9 @@
 from simpleRC import simpleRC
 import numpy as np
 
+""" Implements a simple RC with no feedback but includes some stochastic nodes.
+"""
+
 class stochasticRC( simpleRC ):
 
     def __init__(self,

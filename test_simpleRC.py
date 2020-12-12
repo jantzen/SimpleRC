@@ -3,6 +3,7 @@
 import unittest
 from simpleRC import simpleRC 
 from stochasticRC import stochasticRC 
+from scalefreeRC import scalefreeRC 
 import numpy as np
 import pdb
 
@@ -76,6 +77,10 @@ class TestSimpleRC(unittest.TestCase):
 class TestStochasticRC(TestSimpleRC):
     def setUp(self):
         self.rc = stochasticRC(5, 20, 4, sparsity=1.0, ns=0)
+
+class TestScalefreeRC(TestSimpleRC):
+    def setUp(self):
+        self.rc = scalefreeRC(5, 20, 4, sparsity=1.0)
 
 if __name__ == '__main__':
     unittest.main()

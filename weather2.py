@@ -3,11 +3,11 @@
 import pandas as pd
 import numpy as np
 from simpleRC import *
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 #import matplotlib.animation as animation
 import copy
 
-def open_data(filename1, filename2):
+def open_data(filename1, filename2, plot=False):
     # import csv
     df1 = pd.read_csv(filename1)
     df2 = pd.read_csv(filename2)
@@ -56,14 +56,15 @@ def open_data(filename1, filename2):
     # downsample to get hourly data
     data_VA = data_VA[::3,:]
 
-    # plot for verification
-    plt.figure()
-    plt.title('Virginia data')
-    t = np.arange(data_VA.shape[0]) / 72.
-    for ii in range(5):
-        plt.plot(t, data_VA[:,ii])
-    plt.title("Virginia data")
-    plt.legend(('T_VA', 'Precip_VA', 'RH_VA', 'P_VA', 'WS_VA'))
+    if plot:
+        # plot for verification
+        plt.figure()
+        plt.title('Virginia data')
+        t = np.arange(data_VA.shape[0]) / 72.
+        for ii in range(5):
+            plt.plot(t, data_VA[:,ii])
+        plt.title("Virginia data")
+        plt.legend(('T_VA', 'Precip_VA', 'RH_VA', 'P_VA', 'WS_VA'))
 
     # assemble Utah data
     # choose desired columns and convert to numeric
@@ -183,7 +184,7 @@ def unscale(X, mu, stdev):
 
 
 #def main(filename1='./data/2166184.csv', filename2='./data/2173692.csv'):
-def main(filename1='./data/2166184.csv', filename2='./data/2370691.csv'):
+def main(filename1='./data/2166184.csv', filename2='./data/2370691.csv', plot=False):
     num_samples_VA = 24 * 6
     num_samples_UT = 24 * 6
 #    nn = 500
@@ -197,20 +198,21 @@ def main(filename1='./data/2166184.csv', filename2='./data/2370691.csv'):
     f = open('weather2_output', 'w')
     print("Opening data files...")
 #    data_VA, data_UT, data_KY, data_VA_KY = open_data(filename1, filename2)
-    data_VA, data_UT = open_data(filename1, filename2)
+    data_VA, data_UT = open_data(filename1, filename2, plot)
     print("Normalizing data...")
     data_VA, mu_VA, stdev_VA = scale(data_VA)
     data_UT, mu_UT, stdev_UT = scale(data_UT)
 #    data_KY, mu_KY, stdev_KY = scale(data_KY)
 #    data_VA_KY, mu_VA_KY, stdev_VA_KY = scale(data_VA_KY)
 
-    # plot scaled data for verification
-    plt.figure()
-    plt.title('Scaled Virginia data')
-    t = np.arange(data_VA.shape[0]) / 24.
-    for ii in range(5):
-        plt.plot(t, data_VA[:,ii])
-    plt.legend(('T_VA', 'Precip_VA', 'RH_VA', 'P_VA', 'WS_VA'))
+    if plot:
+        # plot scaled data for verification
+        plt.figure()
+        plt.title('Scaled Virginia data')
+        t = np.arange(data_VA.shape[0]) / 24.
+        for ii in range(5):
+            plt.plot(t, data_VA[:,ii])
+        plt.legend(('T_VA', 'Precip_VA', 'RH_VA', 'P_VA', 'WS_VA'))
 
 
     print("Building RC...")
@@ -294,6 +296,9 @@ def main(filename1='./data/2166184.csv', filename2='./data/2370691.csv'):
     np.savetxt('ut_test2', y_units)
     np.savetxt('ut_preds2', preds_units)
     f.close()
+
+    if plot:
+        plt.show()
 
 if __name__ == '__main__':
     main()
