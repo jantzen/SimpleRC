@@ -70,7 +70,7 @@ def main(plots=False, noise=False, animate=True, partial=False):
     x = x.T
 
     # data for predicting the future
-    cut = int(0.9 * x.shape[0])
+    cut = int(0.95 * x.shape[0])
     train_u = x[:cut, :][:-1,:]
     train_y = x[:cut, :][1:,:]
     test_y = x[cut:,:]
