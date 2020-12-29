@@ -1,3 +1,5 @@
+# kuramoto.py
+
 from __future__ import division
 import numpy as np
 from scipy.integrate import ode
@@ -6,13 +8,12 @@ from scipy.stats import linregress
 import matplotlib.pyplot as plt
 from simpleRC import *
 
-def main(plots=False, noise=False, lag=10, fore=2., animate=True):
+def main(plots=False, noise=False, animate=True, partial=False):
 
     # open file for saving output
     f = open('kuramoto_output', 'w')
 
     # set up Kuramoto systems
-
     N = 6
     K = 0.01
 
@@ -54,52 +55,31 @@ def main(plots=False, noise=False, lag=10, fore=2., animate=True):
 
     x = np.concatenate(x, axis=1)
 
-    c = 0.2
+    c = 0.05
 
     if noise:
         x += c * np.random.random_sample(x.shape)
 
-    # construct plot
-    if plots:
-        for ii in range(2*N):
-            plt.plot(t, x[ii,:])
+#    # construct plot
+#    if plots:
+#        for ii in range(2*N):
+#            plt.plot(t, x[ii,:])
 
     # prepare training and test data
     x = x.T
 
-    # data for predicting the past (checking the RC's memory)
-    cut = int(0.8 * x.shape[0])
-    past_train_u = x[:cut, :][lag:,:]
-    past_train_y = x[:cut, :][:-lag,:]
-    past_test_u = x[cut:,:][lag:,:]
-    past_test_y = x[cut:,:][:-lag,:]
-
     # data for predicting the future
-    stop = int(fore/dt)
-    train_u = x[:cut, :][:-stop,:]
-    train_y = x[:cut, :][stop:,:]
-    test_u = x[cut:,:][:-stop,:]
-    test_y = x[cut:,:][stop:,:]
+    cut = int(0.95 * x.shape[0])
+    train_u = x[:cut, :][:-1,:]
+    train_y = x[:cut, :][1:,:]
+    test_y = x[cut:,:]
 
     # setup an RC
     print("Setting up RC...")
     f.write("Setting up RC...\n")
-    nn = 49
+    nn = 100
     sparsity = 0.5
     gamma = 0.1
-    rc_past = simpleRC(2*N, nn, 2*N, sparsity=sparsity)
-    print("Training to 'predict' past values...")
-    f.write("Training to 'predict' past values...\n")
-    rc_past.train(past_train_u, past_train_y, gamma=gamma)
-    preds = rc_past.predict(past_train_u)
-    error = np.sqrt(np.mean((past_train_y - preds)**2))
-    print("Error on training set: {}".format(error))
-    f.write("Error on training set: {}\n".format(error))
-    preds = rc_past.predict(past_test_u)
-    error = np.sqrt(np.mean((past_test_y - preds)**2))
-    print("Error on test set: {}".format(error))
-    f.write("Error on test set: {}\n".format(error))
-
     print("Setting up RC...")
     f.write("Setting up RC...\n")
     print("Training to forecast future states...")
@@ -115,7 +95,9 @@ def main(plots=False, noise=False, lag=10, fore=2., animate=True):
     error = np.sqrt(np.mean((train_y - preds)**2))
     print("Error on training set: {}".format(error))
     f.write("Error on training set: {}\n".format(error))
-    preds = rc_predict.predict(test_u)
+    U_init = test_y[0,:].reshape(-1,1)
+    steps = test_y.shape[0]
+    preds = rc_predict.run(U_init, steps)
     error = np.sqrt(np.mean((test_y - preds)**2))
     print("Error on test set: {}".format(error))
     f.write("Error on test set: {}\n".format(error))
@@ -123,12 +105,13 @@ def main(plots=False, noise=False, lag=10, fore=2., animate=True):
     if plots:
         plt.figure()
         for ii in range(2*N):
-            plt.plot(t[cut:][stop:], test_y[:,ii], 'bo')
-            plt.plot(t[cut:][stop:], preds[:,ii], 'ro')
-
+            plt.plot(t[cut:], test_y[:,ii], 'bo')
+            plt.plot(t[cut:], preds[:,ii], 'r-')
+        plt.legend(('true','predicted'))
+    f.close()
     plt.show()
 
 
-
 if __name__ == "__main__":
-    main(plots=True, noise=False, fore=10., animate=False)
+    main(plots=True, noise=False, animate=False)
+    main(plots=True, noise=True, animate=False)
