@@ -12,11 +12,13 @@ class simpleRC( object ):
             nu, # size of input layer
             nn, # size of the reservoir
             no,  # size of the output layer
-            sparsity=0.1 # fraction of connections to make
+            sparsity=0.1, # fraction of connections to make
+            mode='onestep' # indicates how the RC will be used and trained
             ):
         self.nu = nu
         self.nn = nn
         self.no = no
+        self.mode=mode
 
         # set input weights (nn X nu)
         self.Win = np.random.normal(size=(nn, nu + 1))
@@ -74,17 +76,17 @@ class simpleRC( object ):
             Ouptput:
                 out: an ss X no.
         """
-        self.zero_in_out()
         steps = U.shape[0]
         out = []
         for ii in range(steps):
+            self.zero_in_out() # reset the reservoir before each prediction
             tmp = U[ii,:].reshape(-1,1)
             self.update(tmp)
             out.append(self.y.T)
         return(np.concatenate(out, axis=0))
 
     
-    def run(self, U_init, steps):
+    def run_os(self, U_init, steps):
         """ Runs the RC on its own predictions for steps.
 
             Inputs:
@@ -93,19 +95,57 @@ class simpleRC( object ):
                 out: an steps x nu array
         """
         # verify that this RC produces output of the same dimension as input
-        self.zero_in_out()
+        self.zero_in_out() 
         self.update(U_init)
         tmp = self.y
         if not tmp.shape == U_init.shape:
             raise ValueError("The output dimensions do not match input.")
-        self.zero_in_out()
-        out = [U_init]
+        out = [tmp]
+        for ii in range(steps):
+            self.zero_in_out() # reset prior to each input
+            tmp = out[ii]
+            self.update(tmp)
+            out.append(self.y)
+        return(np.concatenate(out, axis=1).T[:-1,:])
+
+
+    def run_rf(self, U_init, steps):
+        """ Runs the RC on its own predictions for steps.
+
+            Inputs:
+                U: a 1 x nu array
+            Output:
+                out: an steps x nu array
+        """
+        # verify that this RC produces output of the same dimension as input
+        self.zero_in_out() # reset only once
+        self.update(U_init)
+        tmp = self.y
+        if not tmp.shape == U_init.shape:
+            raise ValueError("The output dimensions do not match input.")
+        out = [tmp]
         for ii in range(steps):
             tmp = out[ii]
             self.update(tmp)
             out.append(self.y)
         return(np.concatenate(out, axis=1).T[:-1,:])
 
+
+    def run(self, U_init, steps):
+        """ Runs the RC on its own predictions for steps.
+
+            Inputs:
+                U: a 1 x nu array
+            Output:
+                out: an steps x nu array
+        """
+        if self.mode == 'onestep':
+            return self.run_os(U_init, steps)
+        if self.mode == 'recurrent':
+            return self.run_r(U_init, steps)
+        if self.mode == 'recurrent_forced':
+            return self.run_rf(U_init, steps)
+ 
 
     def visual_train(self, U, y, gamma=0.5, filename=None):
         """ Trains with ridge regression (see Lukusvicius, jaeger, and
@@ -115,7 +155,6 @@ class simpleRC( object ):
             U: an ss X nu array where ss is the sample size 
             y: an ss X no array of target outputs.
         """
-        self.zero_in_out()
         # Build concatenated matrices
         X = []
         Y = y.T
@@ -140,6 +179,7 @@ class simpleRC( object ):
         ims.append([im])
         
         for ii in range(steps):
+            self.zero_in_out()
             tmp = U[ii,:].reshape(-1,1)
             self.update(tmp)
             x_pad = np.concatenate([self.x.reshape(1,-1),
@@ -163,18 +203,40 @@ class simpleRC( object ):
             return ani
 
 
-    def train(self, U, y, gamma=0.5):
+    def train_os(self, U, y, gamma):
         """ Trains with ridge regression (see Lukusvicius, jaeger, and
         Schrauwen). 
         Inputs:
             U: an ss X nu array where ss is the sample size 
             y: an ss X no array of target outputs.
         """
-        self.zero_in_out()
         # Build concatenated matrices
         X = []
         Y = y.T
         steps = U.shape[0]
+        for ii in range(steps):
+            self.zero_in_out()
+            tmp = U[ii,:].reshape(-1,1)
+            self.update(tmp)
+            X.append(np.vstack((np.ones((1,1)), tmp, self.x)))
+        X = np.concatenate(X, axis=1)
+        I = np.identity(X.shape[0])
+        self.Wout = np.dot(np.dot(Y, X.T), np.linalg.inv(np.dot(X, X.T) +
+            gamma**2 * I))
+
+
+    def train_rf(self, U, y, gamma):
+        """ Trains with ridge regression (see Lukusvicius, jaeger, and
+        Schrauwen). 
+        Inputs:
+            U: an ss X nu array where ss is the sample size 
+            y: an ss X no array of target outputs.
+        """
+        # Build concatenated matrices
+        X = []
+        Y = y.T
+        steps = U.shape[0]
+        self.zero_in_out() # reset only once
         for ii in range(steps):
             tmp = U[ii,:].reshape(-1,1)
             self.update(tmp)
@@ -183,4 +245,19 @@ class simpleRC( object ):
         I = np.identity(X.shape[0])
         self.Wout = np.dot(np.dot(Y, X.T), np.linalg.inv(np.dot(X, X.T) +
             gamma**2 * I))
+
+
+    def train(self, U, y, gamma=0.5):
+        """ Trains with ridge regression (see Lukusvicius, jaeger, and
+        Schrauwen). 
+        Inputs:
+            U: an ss X nu array where ss is the sample size 
+            y: an ss X no array of target outputs.
+        """
  
+        if self.mode == 'onestep':
+            return self.train_os(U, y, gamma=gamma)
+        if self.mode == 'recurrent':
+            return self.train_r(U, y, gamma=gamma)
+        if self.mode == 'recurrent_forced':
+            return self.train_rf(U, y, gamma=gamma)

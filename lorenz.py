@@ -13,7 +13,7 @@ def main(plots=False, noise=False, partial=False):
     # open file for saving output
     f = open('lorenz_output', 'w')
 
-    # set up Lorenze system in the chaotic regime
+    # set up Lorenz system in the chaotic regime
     beta = 8./3.
     rho = 28.
     sigma = 10.
@@ -78,11 +78,9 @@ def main(plots=False, noise=False, partial=False):
     nn = 200
     sparsity = 0.1
     g = 0.3 # increase with increasing sparsity
-    print("Setting up RC...")
-    f.write("Setting up RC...\n")
     print("Training to forecast future states...")
     f.write("Training to forecast future states...\n")
-    rc_predict = simpleRC(3, nn, 3, sparsity=sparsity)
+    rc_predict = simpleRC(3, nn, 3, sparsity=sparsity, mode='recurrent_forced')
     rc_predict.train(train_u, train_y, gamma=g)
     preds = rc_predict.predict(train_u)
     error = np.sqrt(np.mean((train_y - preds)**2))

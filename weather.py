@@ -167,7 +167,8 @@ def main(filename1='./data/2166184.csv', filename2='./data/2370691.csv', plot=Fa
 
 
     print("Building RC...")
-    rc = simpleRC(5 * num_samples_VA, nn, 5 * num_samples_VA, sparsity=sparsity)
+    rc = simpleRC(5 * num_samples_VA, nn, 5 * num_samples_VA, sparsity=sparsity,
+            mode='recurrent_forced')
     print("Revervoir size: {}".format(rc.Wres.shape))
     f.write(("Revervoir size: {}\n".format(rc.Wres.shape)))
 
@@ -214,7 +215,8 @@ def main(filename1='./data/2166184.csv', filename2='./data/2370691.csv', plot=Fa
 
     print("Copying and initializing original RC for use with UT data...")
     f.write("Copying and initializing original RC for use with UT data...\n")
-    rc2 = simpleRC(5 * num_samples_UT, nn, 5 * num_samples_UT, sparsity=sparsity)
+    rc2 = simpleRC(5 * num_samples_UT, nn, 5 * num_samples_UT,
+            sparsity=sparsity, mode='recurrent_forced')
     rc2.Win = copy.deepcopy(rc.Win)
     rc2.Wres = copy.deepcopy(rc.Wres)
     print("Constructing training and testing datasets for UT...")
