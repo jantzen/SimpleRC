@@ -16,9 +16,9 @@ def main(plots=False, noise=False, partial=False):
     alpha = -1.
     beta = 1.
 #    gamma = 0.2
-    gamma = 0.28
-#    gamma = 0.5
+#    gamma = 0.28
 #    gamma = 0.37
+    gamma = 0.5
     delta = 0.3
     omega = 1.2
 
@@ -42,8 +42,8 @@ def main(plots=False, noise=False, partial=False):
 
     # time points
     t0 = 0.
-    t1 = 2000.
-    resolution = 2 * 10**5
+    t1 = 400.
+    resolution = 2 * 10**4
     dt = (t1 - t0) / resolution
 
     # solve ODE at each timestep
@@ -58,10 +58,10 @@ def main(plots=False, noise=False, partial=False):
 
     X = np.concatenate(X, axis=1)
     t = np.array(t).reshape(1,-1)
-    forcing = np.cos(omega * t)
+#    forcing = np.cos(omega * t)
 #    t_norm = t / np.max(t)
 #    X = np.concatenate([t_norm, X], axis=0)
-    X = np.concatenate([forcing, X], axis=0)
+#    X = np.concatenate([forcing, X], axis=0)
     X = X[:, int(50 / dt) :]
     t= t[:, int(50 / dt) :]
 
@@ -71,31 +71,39 @@ def main(plots=False, noise=False, partial=False):
         x += c * np.random.random_sample(X.shape)
 
 #    plt.plot(X[0,:], X[1,:])
-    plt.plot(t.flatten(), X[1,:])
+    plt.plot(t.flatten(), X[0,:])
     plt.figure()
 #    plt.plot(X[1, :], X[2, :])
-    plt.plot(X[1, :], X[2, :])
+    plt.plot(X[0, :], X[1, :])
 
     # prepare training and test data
-    x = X.T
+#    x = X.T
+    tmp = []
+    lag = 1000 
+    terminus = X.shape[1] - lag
+    for ii in range(lag):
+        tmp.append(X[:, ii:(terminus + ii)])
+    tmp = np.concatenate(tmp, axis=0)
+    x = tmp.T
+    t = t[:, :-lag]
 
     # data for predicting the future
     cut = int(0.95 * x.shape[0])
     train_u = x[:cut, :][:-1,:]
     train_y = x[:cut, :][1:,:]
     test_y = x[cut:,:]
-
     # setup an RC
     print("Setting up RC...")
     f.write("Setting up RC...\n")
-    nn = 50
-    sparsity = 0.5
-    g = 0.1 # increase with increasing sparsity
+    nn = 4000
+    sparsity = 0.3
+    g = 0.2 # increase with increasing sparsity
     print("Setting up RC...")
     f.write("Setting up RC...\n")
     print("Training to forecast future states...")
     f.write("Training to forecast future states...\n")
-    rc_predict = simpleRC(3, nn, 3, sparsity=sparsity)
+    rc_predict = simpleRC(2*lag, nn, 2*lag, sparsity=sparsity, mode='recurrent_forced',
+            gpu=True)
     rc_predict.train(train_u, train_y, gamma=g)
     preds = rc_predict.predict(train_u)
     error = np.sqrt(np.mean((train_y - preds)**2))
@@ -111,7 +119,7 @@ def main(plots=False, noise=False, partial=False):
 
     if plots:
         plt.figure()
-        for ii in range(3):
+        for ii in range(2):
 #            plt.plot(X[0, cut:], test_y[:,ii], 'bo')
 #            plt.plot(X[0, cut:], preds[:,ii], 'r-')
             plt.plot(t[0, cut:], test_y[:,ii], 'bo')

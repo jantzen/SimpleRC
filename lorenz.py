@@ -9,7 +9,7 @@ from simpleRC import *
 import os
 import pdb
 
-def main(plots=False, noise=False, partial=False):
+def main(plots=False, noise=False, partial=False, gpu=False):
 
     # open file for saving output
     f = open('lorenz_output', 'w')
@@ -65,10 +65,9 @@ def main(plots=False, noise=False, partial=False):
         X = np.concatenate(X, axis=1)
         t = np.array(t).reshape(1,-1)
     
-        c = 0.05
-    
+        c = 0.1
         if noise:
-            X += c * np.random.random_sample(X.shape)
+            X += c * np.random.standard_normal(X.shape)
         np.save('./lorenz_data.npy', np.concatenate([t, X], axis=0), allow_pickle=False)
 
 #    plt.plot(X[0,:])
@@ -77,6 +76,7 @@ def main(plots=False, noise=False, partial=False):
 
     # prepare training and test data
     x = X.T
+    t = t.T
 
     # data for predicting the future
     cut = int(0.99 * x.shape[0])
@@ -92,7 +92,8 @@ def main(plots=False, noise=False, partial=False):
     g = 0.4 # increase with increasing sparsity
     print("Training to forecast future states...")
     f.write("Training to forecast future states...\n")
-    rc_predict = simpleRC(3, nn, 3, sparsity=sparsity, mode='recurrent_forced')
+    rc_predict = simpleRC(3, nn, 3, sparsity=sparsity, mode='recurrent_forced',
+            gpu=gpu)
     rc_predict.train(train_u, train_y, gamma=g)
     preds = rc_predict.predict(train_u)
     error = np.sqrt(np.mean((train_y - preds)**2))
@@ -121,4 +122,5 @@ def main(plots=False, noise=False, partial=False):
 
 if __name__ == "__main__":
 #    main(plots=True, noise=False)
-    main(plots=True, noise=True)
+    main(plots=True, noise=False, gpu=True)
+#   main(plots=True, noise=True)
