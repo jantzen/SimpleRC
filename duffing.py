@@ -65,11 +65,6 @@ def main(plots=False, noise=False, partial=False):
     X = X[:, int(50 / dt) :]
     t= t[:, int(50 / dt) :]
 
-    c = 0.05
-
-    if noise:
-        x += c * np.random.random_sample(X.shape)
-
 #    plt.plot(X[0,:], X[1,:])
     plt.plot(t.flatten(), X[0,:])
     plt.figure()
@@ -82,9 +77,14 @@ def main(plots=False, noise=False, partial=False):
     lag = 1000 
     terminus = X.shape[1] - lag
     for ii in range(lag):
-        tmp.append(X[:, ii:(terminus + ii)])
+        # save only coordinate, not derivative
+        tmp.append(X[0, ii:(terminus + ii)].reshape(1,-1))
     tmp = np.concatenate(tmp, axis=0)
     x = tmp.T
+    c = 0.2
+    if noise:
+        x += c * np.random.random_sample(x.shape)
+
     t = t[:, :-lag]
 
     # data for predicting the future
@@ -102,7 +102,9 @@ def main(plots=False, noise=False, partial=False):
     f.write("Setting up RC...\n")
     print("Training to forecast future states...")
     f.write("Training to forecast future states...\n")
-    rc_predict = simpleRC(2*lag, nn, 2*lag, sparsity=sparsity, mode='recurrent_forced',
+#    rc_predict = simpleRC(2*lag, nn, 2*lag, sparsity=sparsity, mode='recurrent_forced',
+#            gpu=True)
+    rc_predict = simpleRC(lag, nn, lag, sparsity=sparsity, mode='recurrent_forced',
             gpu=True)
     rc_predict.train(train_u, train_y, gamma=g)
     preds = rc_predict.predict(train_u)
@@ -119,7 +121,7 @@ def main(plots=False, noise=False, partial=False):
 
     if plots:
         plt.figure()
-        for ii in range(2):
+        for ii in range(1):
 #            plt.plot(X[0, cut:], test_y[:,ii], 'bo')
 #            plt.plot(X[0, cut:], preds[:,ii], 'r-')
             plt.plot(t[0, cut:], test_y[:,ii], 'bo')
