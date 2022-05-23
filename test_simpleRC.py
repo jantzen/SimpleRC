@@ -75,6 +75,18 @@ class TestSimpleRC(unittest.TestCase):
         error = np.sqrt(np.mean(np.sum((y2 - preds)**2, axis=1)))
         print(error)
 
+    def test_lag_data(self):
+        from dataprepRC import lag_data
+        lag = 100
+        X = np.ones((5, 1000))
+        Xlag = lag_data(X, lag)
+        assert(Xlag.shape[1] == X.shape[1] - lag)
+        t = np.ones(1000)
+        Xlag, tlag = lag_data(X, lag, times=t)
+        assert(Xlag.shape[1] == X.shape[1] - lag)
+        assert(tlag.shape[0] == t.shape[0] - lag)
+
+
 #class TestStochasticRC(TestSimpleRC):
 #    def setUp(self):
 #        self.rc = stochasticRC(5, 20, 4, sparsity=1.0, ns=0)

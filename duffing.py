@@ -65,6 +65,10 @@ def main(plots=False, noise=False, partial=False):
     X = X[:, int(50 / dt) :]
     t= t[:, int(50 / dt) :]
 
+    c = 0.1
+    if noise:
+        X += c * np.random.random_sample(X.shape)
+
 #    plt.plot(X[0,:], X[1,:])
     plt.plot(t.flatten(), X[0,:])
     plt.figure()
@@ -81,10 +85,6 @@ def main(plots=False, noise=False, partial=False):
         tmp.append(X[0, ii:(terminus + ii)].reshape(1,-1))
     tmp = np.concatenate(tmp, axis=0)
     x = tmp.T
-    c = 0.2
-    if noise:
-        x += c * np.random.random_sample(x.shape)
-
     t = t[:, :-lag]
 
     # data for predicting the future
@@ -98,8 +98,6 @@ def main(plots=False, noise=False, partial=False):
     nn = 4000
     sparsity = 0.3
     g = 0.2 # increase with increasing sparsity
-    print("Setting up RC...")
-    f.write("Setting up RC...\n")
     print("Training to forecast future states...")
     f.write("Training to forecast future states...\n")
 #    rc_predict = simpleRC(2*lag, nn, 2*lag, sparsity=sparsity, mode='recurrent_forced',
@@ -112,7 +110,7 @@ def main(plots=False, noise=False, partial=False):
     print("Error on training set: {}".format(error))
     f.write("Error on training set: {}\n".format(error))
     U_init = test_y[0,:].reshape(-1,1)
-    print(U_init)
+#    print(U_init)
     steps = test_y.shape[0]
     preds = rc_predict.run(U_init, steps)
     error = np.sqrt(np.mean((test_y - preds)**2))
@@ -132,5 +130,6 @@ def main(plots=False, noise=False, partial=False):
 
 
 if __name__ == "__main__":
+#    main(plots=True, noise=False)
     main(plots=True, noise=False)
-#    main(plots=True, noise=True)
+    main(plots=True, noise=True)

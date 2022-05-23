@@ -65,7 +65,7 @@ def main(plots=False, noise=False, partial=False, gpu=False):
         X = np.concatenate(X, axis=1)
         t = np.array(t).reshape(1,-1)
     
-        c = 0.1
+        c = 0.5
         if noise:
             X += c * np.random.standard_normal(X.shape)
         np.save('./lorenz_data.npy', np.concatenate([t, X], axis=0), allow_pickle=False)
@@ -122,5 +122,6 @@ def main(plots=False, noise=False, partial=False, gpu=False):
 
 if __name__ == "__main__":
 #    main(plots=True, noise=False)
-    main(plots=True, noise=False, gpu=True)
+#    main(plots=True, noise=False, gpu=True)
+    main(plots=True, noise=True, gpu=True)
 #   main(plots=True, noise=True)
