@@ -7,6 +7,7 @@ from scipy import zeros_like
 from scipy.stats import linregress
 import matplotlib.pyplot as plt
 from simpleRC import *
+from dataprepRC import *
 
 def main(plots=False, noise=False, animate=True, partial=False):
 
@@ -69,11 +70,11 @@ def main(plots=False, noise=False, animate=True, partial=False):
     x = x.T
 
     # data for predicting the future
-    cut = int(0.95 * x.shape[0])
-    train_u = x[:cut, :][:-1,:]
-    train_y = x[:cut, :][1:,:]
-    test_y = x[cut:,:]
-
+#    cut = int(0.95 * x.shape[0])
+#    train_u = x[:cut, :][:-1,:]
+#    train_y = x[:cut, :][1:,:]
+#    test_y = x[cut:,:]
+    train_u, train_y, test_y, U_init = train_test(x, train_proportion=0.95)
     # setup an RC
     print("Setting up RC...")
     f.write("Setting up RC...\n")
@@ -95,18 +96,19 @@ def main(plots=False, noise=False, animate=True, partial=False):
     error = np.sqrt(np.mean((train_y - preds)**2))
     print("Error on training set: {}".format(error))
     f.write("Error on training set: {}\n".format(error))
-    U_init = test_y[0,:].reshape(-1,1)
-    steps = test_y.shape[0]
+#    U_init = test_y[0,:].reshape(-1,1)
+    steps = test_y.shape[0] - 1
     preds = rc_predict.run(U_init, steps)
-    error = np.sqrt(np.mean((test_y - preds)**2))
+    error = np.sqrt(np.mean((test_y[1:,:] - preds)**2))
     print("Error on test set: {}".format(error))
     f.write("Error on test set: {}\n".format(error))
 
     if plots:
+        cut = int(x.shape[0] * 0.95)
         plt.figure()
         for ii in range(2*N):
-            plt.plot(t[cut:], test_y[:,ii], 'bo')
-            plt.plot(t[cut:], preds[:,ii], 'r-')
+            plt.plot(t[cut+2:], test_y[1:,ii], 'bo')
+            plt.plot(t[cut+2:], preds[:,ii], 'r-')
         plt.legend(('true','predicted'))
     f.close()
     plt.show()
