@@ -25,7 +25,8 @@ class simpleRC( object ):
             nn, # size of the reservoir
             no,  # size of the output layer
             sparsity=0.1, # fraction of connections to make
-            gpu=False # indicates whether to use gpu for computation
+            gpu=False, # indicates whether to use gpu for computation
+            rescale_radius=True
             ):
         self.nu = nu
         self.nn = nn
@@ -51,17 +52,18 @@ class simpleRC( object ):
             tmp = np.random.normal(size=(nn, nn)) * edge_matrix
             self.Wres = torch.from_numpy(tmp).to(self.device)
 
-            # check spectral radius and rescale
-            w, v = torch.linalg.eig(self.Wres)
-            radius = torch.max(torch.abs(w))
-            if radius > 1:
-                print("Rescaling weight matrix to reduce spectral radius.")
-                self.Wres = self.Wres / (1.1 * radius)
-            # verify
-            w, v = torch.linalg.eig(self.Wres)
-            radius = torch.max(torch.abs(w))
-            if radius > 1:
-                warnings.warn("Spectral radius still greater than 1.")
+            if rescale_radius:
+                # check spectral radius and rescale
+                w, v = torch.linalg.eig(self.Wres)
+                radius = torch.max(torch.abs(w))
+                if radius > 1:
+                    print("Rescaling weight matrix to reduce spectral radius.")
+                    self.Wres = self.Wres / (1.1 * radius)
+                # verify
+                w, v = torch.linalg.eig(self.Wres)
+                radius = torch.max(torch.abs(w))
+                if radius > 1:
+                    warnings.warn("Spectral radius still greater than 1.")
 
             # set output weights (no X (nu + nn + 1))
             self.Wout = torch.normal(0., 1., (no, nu + nn + 1)).to(self.device)

@@ -98,26 +98,45 @@ def open_data(filename1, filename2, plot=False):
     return data_VA, data_UT
 
 
-def prep_training_and_test(data, num_samples):
-    """ Train the RC to use num_samples of data to predict the hourly
-    temperature at the next time step. There are 24 samples a day.
+#def prep_training_and_test(data, num_samples):
+#    """ Train the RC to use num_samples of data to predict the hourly
+#    temperature at the next time step. There are 24 samples a day.
+#    """
+#    print("Data shape: {}".format(data.shape))
+#    U = []
+#    y = []
+#
+#    rows = data.shape[0] - num_samples
+#    for ii in range(rows):
+#        tmp_U = data[ii : ii + num_samples, :]
+#        tmp_y = data[ii + 1 : ii + num_samples + 1, :]
+#        U.append(tmp_U.flatten().reshape(1, -1))
+#        y.append(tmp_y.flatten().reshape(1, -1))
+#    U = np.concatenate(U, axis=0)
+#    y = np.concatenate(y, axis=0)
+#    print(U.shape, y.shape)
+#
+#    # split into training (95%) and testing (5%)
+#    split = int(0.945 * U.shape[0])
+#    U_train = U[:split, :]
+#    y_train = y[:split, :]
+#    U_test = U[split:, :]
+#    y_test = y[split:, :]
+#
+#    return U_train, y_train, U_test, y_test
+
+
+def prep_training_and_test(data, days):
+    """ Train the RC to predict the hourly temperature over the following days.
+        There are 24 samples a day.
     """
     print("Data shape: {}".format(data.shape))
-    U = []
-    y = []
-
-    rows = data.shape[0] - num_samples
-    for ii in range(rows):
-        tmp_U = data[ii : ii + num_samples, :]
-        tmp_y = data[ii + 1 : ii + num_samples + 1, :]
-        U.append(tmp_U.flatten().reshape(1, -1))
-        y.append(tmp_y.flatten().reshape(1, -1))
-    U = np.concatenate(U, axis=0)
-    y = np.concatenate(y, axis=0)
-    print(U.shape, y.shape)
+    U = data[:-1,:]
+    y = data[1:,:]
 
     # split into training (95%) and testing (5%)
-    split = int(0.945 * U.shape[0])
+#    split = int(0.95 * U.shape[0])
+    split = U.shape[0] - 24 * days
     U_train = U[:split, :]
     y_train = y[:split, :]
     U_test = U[split:, :]
@@ -141,12 +160,16 @@ def unscale(X, mu, stdev):
 
 
 #def main(filename1='./data/2166184.csv', filename2='./data/2173692.csv'):
-def main(filename1='./data/2166184.csv', filename2='./data/2370691.csv', plot=False):
+def main(filename1='./data/2166184.csv', filename2='./data/2370691.csv',
+         plot=False, gpu=True):
     num_samples_VA = 24 * 6
     num_samples_UT = 24 * 6
-    nn = 490
-    sparsity = 0.01
-    gamma = 0.01
+    nn = 500
+    sparsity = 0.5
+    gamma = 0.2
+
+    days = 3
+    steps = days * 24
 
     # open file for saving output
     f = open('weather_output', 'w')
@@ -167,75 +190,69 @@ def main(filename1='./data/2166184.csv', filename2='./data/2370691.csv', plot=Fa
 
 
     print("Building RC...")
-    rc = simpleRC(5 * num_samples_VA, nn, 5 * num_samples_VA, sparsity=sparsity,
-            mode='recurrent_forced')
+    rc = simpleRC(5, nn, 5, sparsity=sparsity, gpu=gpu)
     print("Revervoir size: {}".format(rc.Wres.shape))
     f.write(("Revervoir size: {}\n".format(rc.Wres.shape)))
 
     print("Constructing training and testing datasets for VA...")
     f.write("Constructing training and testing datasets for VA...\n")
-    U_train, y_train, U_test, y_test = prep_training_and_test(data_VA,
-            num_samples_VA)
+    U_train, y_train, U_test, y_test = prep_training_and_test(data_VA, days)
     print(U_train.shape, y_train.shape, U_test.shape, y_test.shape)
 
     # test untrained accuracy
-    steps = 24 * 4
     np.savetxt('steps', np.array(steps).reshape(1,1))
     U_init = U_train[0,:].reshape(-1,1)
-    preds = rc.run(U_init, steps)
+    preds = rc.project(U_init, steps)
     error = np.sqrt(np.mean(np.linalg.norm((y_train[:steps,:] - preds), axis=1)))
-    print("Sanity check: untrained prediction accuracy = {}".format(error))
-    f.write("Sanity check: untrained prediction accuracy = {}\n".format(error))
+    print("Sanity check: untrained prediction error = {}".format(error))
+    f.write("Sanity check: untrained prediction error = {}\n".format(error))
 
     print("Training the RC for VA...")
     f.write("Training the RC for VA...\n")
-    rc.train(U_train, y_train, gamma=gamma)
+    rc.train(U_train, y_train, gamma=gamma, settling_steps=10)
     print("Testing the trained RC for VA...")
     f.write("Testing the trained RC for VA...\n")
-    preds = rc.run(U_init, steps)
-    error = np.sqrt(np.mean(np.linalg.norm((y_train[:steps,:] - preds), axis=1)))
+    preds = rc.predict(U_train, settling_steps=10)
+    error = np.sqrt(np.mean(np.linalg.norm((y_train[10:,:] - preds), axis=1)))
     print("Error on training set: {}".format(error))
     f.write("Error on training set: {}\n".format(error))
+    rc.train(U_train, y_train, gamma=gamma, settling_steps=10)
     U_init = U_test[0,:].reshape(-1,1)
-    preds = rc.run(U_init, steps)
+    preds = rc.project(U_init, steps)
     error = np.sqrt(np.mean(np.linalg.norm((y_test[:steps,:] - preds), axis=1)))
     print("Error on test set: {}".format(error))
     f.write("Error on test set: {}\n".format(error))
     t = np.arange(y_test.shape[0]) / 24.
     print("Saving the linear output layer for VA...")
-    np.savetxt('Wout_VA', rc.Wout)
+    np.savetxt('Wout_VA', rc.Wout.cpu().numpy())
     print("Saving the reservoir weights for VA...")
-    np.savetxt('W_VA', rc.Wres)
+    np.savetxt('W_VA', rc.Wres.cpu().numpy())
     # unscale the data
     y_units = unscale(y_test[:,-5:], mu_VA, stdev_VA)
     preds_units = unscale(preds[:,-5:], mu_VA, stdev_VA)
     np.savetxt('va_t', t)
     np.savetxt('va_test', y_units)
     np.savetxt('va_preds', preds_units)
-
     print("Copying and initializing original RC for use with UT data...")
     f.write("Copying and initializing original RC for use with UT data...\n")
-    rc2 = simpleRC(5 * num_samples_UT, nn, 5 * num_samples_UT,
-            sparsity=sparsity, mode='recurrent_forced')
+    rc2 = simpleRC(5, nn, 5, sparsity=sparsity, gpu=gpu)
     rc2.Win = copy.deepcopy(rc.Win)
     rc2.Wres = copy.deepcopy(rc.Wres)
     print("Constructing training and testing datasets for UT...")
     f.write("Constructing training and testing datasets for UT...\n")
-    U_train, y_train, U_test, y_test = prep_training_and_test(data_UT, 
-            num_samples_UT)
+    U_train, y_train, U_test, y_test = prep_training_and_test(data_UT, days)
     print(U_train.shape, y_train.shape, U_test.shape, y_test.shape)
     print("Training the RC for UT...")
     f.write("Training the RC for UT...\n")
-    rc2.train(U_train, y_train, gamma=gamma)
+    rc2.train(U_train, y_train, gamma=gamma, settling_steps=10)
     print("Testing the trained RC for UT...")
     f.write("Testing the trained RC for UT...\n")
-    U_init = U_train[0,:].reshape(-1,1)
-    preds = rc2.run(U_init, steps)
-    error = np.sqrt(np.mean(np.linalg.norm((y_train[:steps,:] - preds), axis=1)))
+    preds = rc2.predict(U_train, settling_steps=10)
+    error = np.sqrt(np.mean(np.linalg.norm((y_train[10:,:] - preds), axis=1)))
     print("Error on training set: {}".format(error))
     f.write("Error on training set: {}\n".format(error))
     U_init = U_test[0,:].reshape(-1,1)
-    preds = rc2.run(U_init, steps)
+    preds = rc2.project(U_init, steps)
     error = np.sqrt(np.mean(np.linalg.norm((y_test[:steps,:] - preds), axis=1)))
     print("Error on test set: {}".format(error))
     f.write("Error on test set: {}\n".format(error))

@@ -48,8 +48,8 @@ def main(plots=False, noise=False, partial=False, gpu=False):
     
         # time points
         t0 = 0.
-        t1 = 400.
-        resolution = 4 * 10**5
+        t1 = 100.
+        resolution = 10**5
         dt = (t1 - t0) / resolution
     
         # solve ODE at each timestep
@@ -64,45 +64,41 @@ def main(plots=False, noise=False, partial=False, gpu=False):
     
         X = np.concatenate(X, axis=1)
         t = np.array(t).reshape(1,-1)
-    
+   
         c = 0.5
         if noise:
             X += c * np.random.standard_normal(X.shape)
         np.save('./lorenz_data.npy', np.concatenate([t, X], axis=0), allow_pickle=False)
 
-#    plt.plot(X[0,:])
-#    ax = plt.figure().add_subplot(projection='3d')
-#    ax.plot(X[0, :], X[1, :], X[2, :])
+    X = X.T
+    plt.plot(t.flatten(), X[:,0])
+    ax = plt.figure().add_subplot(projection='3d')
+    ax.plot(X[:, 0], X[:, 1], X[:, 2])
 
     # prepare training and test data
-    x = X.T
-    t = t.T
-
-    # data for predicting the future
-    cut = int(0.99 * x.shape[0])
-    train_u = x[:cut, :][:-1,:]
-    train_y = x[:cut, :][1:,:]
-    test_y = x[cut:,:]
+    cut = int(0.95 * X.shape[0])
+    train_u = X[:cut, :][:-1,:]
+    train_y = X[:cut, :][1:,:]
+    test_y = X[cut+1:,:]
+    U_init = X[cut, :].reshape(-1, 1)
 
     # setup an RC
     print("Setting up RC...")
     f.write("Setting up RC...\n")
-    nn = 2000
-    sparsity = 0.2
-    g = 0.4 # increase with increasing sparsity
+    nn = 600
+    sparsity = 0.5
+    g = 0.2 # increase with increasing sparsity
     print("Training to forecast future states...")
     f.write("Training to forecast future states...\n")
-    rc_predict = simpleRC(3, nn, 3, sparsity=sparsity, mode='recurrent_forced',
-            gpu=gpu)
-    rc_predict.train(train_u, train_y, gamma=g)
-    preds = rc_predict.predict(train_u)
-    error = np.sqrt(np.mean((train_y - preds)**2))
+    nu = no = X.shape[1]
+    rc_predict = simpleRC(nu, nn, no, sparsity=sparsity, gpu=gpu)
+    rc_predict.train(train_u, train_y, gamma=g, settling_steps=100)
+    preds = rc_predict.predict(train_u, settling_steps=100)
+    error = np.sqrt(np.mean((train_y[100:,:] - preds)**2))
     print("Error on training set: {}".format(error))
     f.write("Error on training set: {}\n".format(error))
-    U_init = test_y[0,:].reshape(-1,1)
-    print(U_init)
     steps = test_y.shape[0]
-    preds = rc_predict.run(U_init, steps)
+    preds = rc_predict.project(U_init, steps)
     error = np.sqrt(np.mean((test_y - preds)**2))
     print("Error on test set: {}".format(error))
     f.write("Error on test set: {}\n".format(error))
@@ -111,17 +107,18 @@ def main(plots=False, noise=False, partial=False, gpu=False):
         if plots:
             plt.figure()
             for ii in range(3):
-                plt.plot(t[cut:], test_y[:,ii], 'bo')
-                plt.plot(t[cut:], preds[:,ii], 'r-')
+                plt.plot(t[cut+1:], test_y[:,ii], 'bo')
+                plt.plot(t[cut+1:], preds[:,ii], 'r-')
             plt.legend(('true','predicted'))
-    except:
+    except Exception as e:
         print("An exception occurred attempting to plot.")
+        print(e)
     f.close()
     plt.show()
 
 
 if __name__ == "__main__":
 #    main(plots=True, noise=False)
-#    main(plots=True, noise=False, gpu=True)
-    main(plots=True, noise=True, gpu=True)
-#   main(plots=True, noise=True)
+    main(plots=True, noise=False, gpu=True)
+#    main(plots=True, noise=True, gpu=True)
+#    main(plots=True, noise=True)
