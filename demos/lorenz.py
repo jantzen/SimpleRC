@@ -1,4 +1,4 @@
-# lorenze.py
+# lorenz.py
 
 from __future__ import division
 import numpy as np
@@ -12,13 +12,13 @@ import pdb
 def main(plots=False, noise=False, partial=False, gpu=False):
 
     # open file for saving output
-    f = open('./data/lorenz_output', 'w')
+    f = open('./output/lorenz_output', 'w')
 
     # check to see if data already exists
-    if os.path.exists('./lorenz_data.npy'):
+    if os.path.exists('../data/lorenz_data.npy'):
         f.write('Loading preexisting data.')
         print('Loading preexisting data.')
-        data = np.load('./lorenz_data.npy')
+        data = np.load('../data/lorenz_data.npy')
         t = data[0, :]
         X = data[1:, :]
 
@@ -68,7 +68,7 @@ def main(plots=False, noise=False, partial=False, gpu=False):
         c = 0.5
         if noise:
             X += c * np.random.standard_normal(X.shape)
-        np.save('./lorenz_data.npy', np.concatenate([t, X], axis=0), allow_pickle=False)
+        np.save('../data/lorenz_data.npy', np.concatenate([t, X], axis=0), allow_pickle=False)
 
     X = X.T
     plt.plot(t.flatten(), X[:,0])
@@ -107,12 +107,17 @@ def main(plots=False, noise=False, partial=False, gpu=False):
         if plots:
             plt.figure()
             for ii in range(3):
-                plt.plot(t[cut+1:], test_y[:,ii], 'bo')
-                plt.plot(t[cut+1:], preds[:,ii], 'r-')
+                plt.plot(t.flatten()[cut+1:], test_y[:,ii], 'bo')
+                plt.plot(t.flatten()[cut+1:], preds[:,ii], 'r-')
             plt.legend(('true','predicted'))
     except Exception as e:
         print("An exception occurred attempting to plot.")
         print(e)
+
+    # Save predictions for plotting
+    pred_data = np.concatenate([t.flatten()[cut+1:].reshape(-1,1), test_y, preds], axis=1)
+    np.save('../data/lorenz_predictions.npy', pred_data)
+
     f.close()
     plt.show()
 

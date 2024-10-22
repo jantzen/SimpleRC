@@ -8,11 +8,15 @@ from scipy.stats import linregress
 import matplotlib.pyplot as plt
 from simpleRC import *
 from dataprepRC import *
+import os
 
 def main(plots=False, noise=False, animate=True, partial=False):
 
     # open file for saving output
-    f = open('kuramoto_output', 'w')
+    if noise:
+        f = open('./output/kuramoto_output_noisy', 'w')
+    else:
+        f = open('./output/kuramoto_output', 'w')
 
     # set up Kuramoto systems
     N = 6
@@ -33,38 +37,53 @@ def main(plots=False, noise=False, animate=True, partial=False):
         
         return dtheta
 
-    # initial condition
-    theta0 = np.linspace(0.1, 2., N)
+    if not noise and os.path.isfile('../data/kuramoto_data.npy'):
+        print("Using previously generated data...")
+        f.write("Using previously generated data.\n")
+        data = np.load('../data/kuramoto_data.npy')
+        t = data[0, :]
+        x = data[1:,:]
+    elif noise and os.path.isfile('../data/kuramoto_data_noisy.npy'):
+        print("Using previously generated noisy data...")
+        f.write("Using previously generated noisy data.\n")
+        data = np.load('../data/kuramoto_data_noisy.npy')
+        t = data[0, :]
+        x = data[1:,:]
+    else:
+        # initial condition
+        theta0 = np.linspace(0.1, 2., N)
 
-    # time points
-    t0 = 0.
-    t1 = 100.
-    resolution = 10000
-    dt = (t1 - t0) / resolution
+        # time points
+        t0 = 0.
+        t1 = 100.
+        resolution = 10000
+        dt = (t1 - t0) / resolution
 
-    # solve ODE at each timestep
-    r = ode(model).set_integrator('lsoda')
-    r.set_initial_value(theta0, t0).set_f_params([K, omega])
-    x = []
-    t = []
-    raw_theta_untrans1 = []
-    while r.successful() and r.t < t1:
-        t.append(r.t)
-        tmp = r.integrate(r.t+dt)
-        raw_theta_untrans1.append(tmp.reshape(-1,1))
-        x.append(np.array([np.cos(tmp), np.sin(tmp)]).reshape(-1,1))
+        # solve ODE at each timestep
+        r = ode(model).set_integrator('lsoda')
+        r.set_initial_value(theta0, t0).set_f_params([K, omega])
+        x = []
+        t = []
+        raw_theta_untrans1 = []
+        while r.successful() and r.t < t1:
+            t.append(r.t)
+            tmp = r.integrate(r.t+dt)
+            raw_theta_untrans1.append(tmp.reshape(-1,1))
+            x.append(np.array([np.cos(tmp), np.sin(tmp)]).reshape(-1,1))
 
-    x = np.concatenate(x, axis=1)
+        x = np.concatenate(x, axis=1)
 
-    c = 0.05
+        c = 0.05
 
-    if noise:
-        x += c * np.random.random_sample(x.shape)
+        data_filename = 'kuramoto_data.npy'
 
-#    # construct plot
-#    if plots:
-#        for ii in range(2*N):
-#            plt.plot(t, x[ii,:])
+        if noise:
+            x += c * np.random.random_sample(x.shape)
+            data_filename = 'kuramoto_data_noisy.npy'
+
+        data = np.concatenate([np.array(t).reshape(1,-1), x], axis=0)
+
+        np.save('../data/' + data_filename, data)
 
     # prepare training and test data
     x = x.T
@@ -92,7 +111,6 @@ def main(plots=False, noise=False, animate=True, partial=False):
     error = np.sqrt(np.mean((train_y[100:,:] - preds)**2))
     print("Error on training set: {}".format(error))
     f.write("Error on training set: {}\n".format(error))
-#    U_init = test_y[0,:].reshape(-1,1)
     steps = test_y.shape[0]
     rc_predict.train(train_u, train_y, gamma=gamma, settling_steps=100)
     preds = rc_predict.project(U_init, steps)
@@ -101,7 +119,6 @@ def main(plots=False, noise=False, animate=True, partial=False):
     f.write("Error on test set: {}\n".format(error))
 
     if plots:
-#        cut = int(x.shape[0] * 0.95)
         plt.figure()
         for ii in range(2*N):
             plt.plot(t[cut+1:], test_y[:,ii], 'bo')
