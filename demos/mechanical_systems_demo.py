@@ -36,7 +36,7 @@ def main(plots=False, noise=False, partial=False, gpu=False):
     ss = 30 # settling steps
     print("Setting up RC...")
     f.write("Setting up RC...\n")
-    nn = 600
+    nn = 100
     sparsity = 0.5
     g = 0.4 # increase with increasing sparsity
     print("Training to forecast future states...")

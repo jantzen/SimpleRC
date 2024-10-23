@@ -8,8 +8,8 @@ preds_lin_osc = np.load('../data/mech_preds_double_linear.npy')
 preds_pend = np.load('../data/mech_preds_double_pend.npy')
 
 
-fig, axs = plt.subplots(ncols=1, nrows=2, figsize=(6,3))
-#fig.tight_layout(rect=[0.05, 0.05, 0.95, 0.95], h_pad=2., w_pad=4.)
+fig, axs = plt.subplots(ncols=1, nrows=2, figsize=(6,5))
+fig.tight_layout(rect=[0.05, 0.05, 0.95, 0.95], h_pad=4.)
 axs[0].plot(preds_lin_osc[:,0], preds_lin_osc[:,1], 'k-')
 axs[0].plot(preds_lin_osc[:,0], preds_lin_osc[:,5], 'k+', markersize=5)
 axs[0].plot(preds_lin_osc[:,0], preds_lin_osc[:,2], 'k-')
@@ -39,6 +39,5 @@ axs[1].set_xlabel('t', fontsize=10)
 axs[1].set_ylabel(r'$x_i(t)$', fontsize=10)
 axs1t.set_ylabel(r'$v_t(t)$', fontsize=10, color='tab:gray')
 axs1t.tick_params(axis='y', colors='tab:gray')
+plt.savefig('mech_figure.pdf', dpi=600)
 
-
-plt.show()
