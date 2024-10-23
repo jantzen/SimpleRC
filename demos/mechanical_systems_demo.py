@@ -33,11 +33,11 @@ def main(plots=False, noise=False, partial=False, gpu=False):
     U_init = X[cut, :].reshape(-1, 1)
 
     # setup an RC
-    ss = 25 # settling steps
+    ss = 30 # settling steps
     print("Setting up RC...")
     f.write("Setting up RC...\n")
     nn = 600
-    sparsity = 0.7
+    sparsity = 0.5
     g = 0.4 # increase with increasing sparsity
     print("Training to forecast future states...")
     f.write("Training to forecast future states...\n")
@@ -82,6 +82,11 @@ def main(plots=False, noise=False, partial=False, gpu=False):
     except Exception as e:
         print("An exception occurred attempting to plot.")
         print(e)
+
+    # Save predictions for plotting
+    pred_data = np.concatenate([t.flatten()[cut+1:].reshape(-1,1), test_y, preds], axis=1)
+    np.save('../data/mech_preds_double_linear.npy', pred_data)
+
 
     # Double pendulum
     # open data file
@@ -128,6 +133,10 @@ def main(plots=False, noise=False, partial=False, gpu=False):
         print("An exception occurred attempting to plot.")
         print(e)
  
+    
+    # Save predictions for plotting
+    pred_data = np.concatenate([t.flatten()[cut+1:].reshape(-1,1), test_y, preds], axis=1)
+    np.save('../data/mech_preds_double_pend.npy', pred_data)
 
     f.close()
     plt.show()
