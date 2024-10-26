@@ -10,14 +10,12 @@ def main():
     t = np.linspace(0., 6280., 5000)
     tmp = np.concatenate([np.sin(t).reshape(-1,1),
                               np.cos(0.7*t).reshape(-1,1)], axis=1)
-    plt.figure()
-    plt.plot(tmp[:, 0], tmp[:, 1])
     U_train = tmp[:-1,:]
     y_train = tmp[1:, :]
     rc.train(U_train, y_train)
 
-    # pick a random seed
-    rc.y = np.random.rand(2, 1)
+#    # pick a random seed
+#    rc.y = np.random.rand(2, 1)
     y = []
     x = []
     for ii in range(1000):
@@ -33,6 +31,12 @@ def main():
     ax2.plot(y[:, 0], y[:, 1], 'b.')
 
     plt.show()
+
+    # prompt and save data
+    ans = input("Save this data? (y/n) \n")
+    if ans == 'y' or ans == 'Y':
+        data = np.concatenate([x, y], axis=1)
+        np.save('../data/projection_demo.npy', data)
 
 if __name__ == '__main__':
     main()
