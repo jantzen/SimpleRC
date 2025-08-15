@@ -4,9 +4,9 @@ import numpy as np
 import warnings
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-import imp
+import importlib.util
 try:
-    imp.find_module('torch')
+    importlib.util.find_spec('torch')
     found = True
 except ImportError:
     errmsg = "The PyTorch module (torch) was not found. Restricted to CPU methods."

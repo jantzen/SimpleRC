@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from simpleRC import *
 import os
 import pandas as pd
-import imp
+import importlib.util
 import pdb
 
 def main(plots=False, noise=False, partial=False, gpu=False):
@@ -49,7 +49,7 @@ def main(plots=False, noise=False, partial=False, gpu=False):
         W_temp = np.load('./output/W_res.npy')
         if gpu:
             try:
-                imp.find_module('torch')
+                importlib.util.find_spec('torch')
                 found = True
             except ImportError:
                 errmsg = "The PyTorch module (torch) was not found. Restricted to CPU methods."
